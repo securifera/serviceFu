@@ -481,7 +481,12 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave
 			if(runMimikatz) {
 				//use mimikatz to obtain credentials
 #ifdef MIMIKATZLIB
-				//TODO integrate lsadumpsecrets code to be called here
+				if(savedFiles.size() > 1) {
+					testlibfunc(savedFiles[1], savedFiles[0]);
+				}
+				else {
+					printf("Registry hive files not retrieved\n");
+				}
 #else
 				printf("[-] Mimikatz support not compiled in. Rebuild\n");
 #endif
