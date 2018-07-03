@@ -517,6 +517,7 @@ void usage()
 	printf("   m              mimikatz - automatically use mimikatz to find creds\n");
 	printf("   d              delete - delete registry hive files after mimikatz run\n");
 	printf("   r              registry - grab registry hives if interesting services discovered\n");
+	printf("   f              force save - force saving registry hives even if interesting services not found\n");
 }
 
 /**
