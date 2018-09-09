@@ -5,6 +5,8 @@
 */
 #include "kull_m_crypto.h"
 
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)    // ntsubauth
+
 BOOL kull_m_crypto_hash(ALG_ID algid, LPCVOID data, DWORD dataLen, LPVOID hash, DWORD hashWanted)
 {
 	BOOL status = FALSE;

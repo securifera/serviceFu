@@ -4,7 +4,9 @@
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
 #pragma once
-#include <ntstatus.h>
+
+//#define WIN32_NO_STATUS
+//#include <ntstatus.h>
 #define WIN32_NO_STATUS
 #define SECURITY_WIN32
 #define CINTERFACE

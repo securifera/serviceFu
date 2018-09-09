@@ -1,5 +1,7 @@
 #include "kuhl_m_lsadump.h"
 
+#define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
+
 const wchar_t * kuhl_m_lsadump_CONTROLSET_SOURCES[] = {L"Current", L"Default"};
 BOOL kuhl_m_lsadump_getCurrentControlSet(PKULL_M_REGISTRY_HANDLE hRegistry, HKEY hSystemBase, PHKEY phCurrentControlSet)
 {
@@ -466,7 +468,7 @@ BOOL kuhl_m_lsadump_decryptSCCache(PBYTE data, DWORD size, HCRYPTPROV hProv, DWO
 	PBYTE sig;
 	HCRYPTKEY hKey;
 
-	DWORD i, j;
+	DWORD i;
 	PPAC_CREDENTIAL_DATA credentialData = NULL;
 	PNTLM_SUPPLEMENTAL_CREDENTIAL ntlmCredential;
 	PNTLM_SUPPLEMENTAL_CREDENTIAL_V4 ntlmCredential4;
