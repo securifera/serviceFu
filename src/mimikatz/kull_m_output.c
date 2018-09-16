@@ -13,6 +13,9 @@ size_t outputBufferElements = 0, outputBufferElementsPosition = 0;
 
 void kprintf(PCWCHAR format, ...)
 {
+
+#ifdef _DEBUG // DEBUG preprocessor
+
 #ifndef MIMIKATZ_W2000_SUPPORT
 	int varBuf;
 	size_t tempSize;
@@ -62,6 +65,8 @@ void kprintf(PCWCHAR format, ...)
 		fflush(logfile);
 	}
 	va_end(args);
+
+#endif // DEBUG preprocessor
 }
 
 void kprintf_inputline(PCWCHAR format, ...)

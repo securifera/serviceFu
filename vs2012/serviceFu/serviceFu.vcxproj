@@ -314,6 +314,7 @@
     <ClInclude Include="..\..\src\debug.h" />
     <ClInclude Include="..\..\src\getopt.h" />
     <ClInclude Include="..\..\src\utils.h" />
+    <ClInclude Include="..\..\src\main.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

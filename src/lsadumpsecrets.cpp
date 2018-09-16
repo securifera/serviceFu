@@ -19,12 +19,12 @@ int testmain(int argc, char** argv)
 int main(int argc, char** argv)
 #endif
 {
-	kuhl_m_lsadump_secrets("sys.hiv", "sec.hiv");
+	kuhl_m_lsadump_secrets(nullptr, 0, "sys.hiv", "sec.hiv");
 
 	return 0;
 }
 
-void testlibfunc(std::string sysHive, std::string securityHive)
+void dump_svc_secrets(PSVC_STRUCT *svc_arr, size_t svc_arr_size, std::string sysHive, std::string securityHive)
 {
-	kuhl_m_lsadump_secrets(sysHive.c_str(), securityHive.c_str());
+	kuhl_m_lsadump_secrets( svc_arr, svc_arr_size, sysHive.c_str(), securityHive.c_str());
 }
