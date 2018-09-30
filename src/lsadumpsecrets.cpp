@@ -19,8 +19,7 @@ int testmain(int argc, char** argv)
 int main(int argc, char** argv)
 #endif
 {
-	kuhl_m_lsadump_secrets(nullptr, 0, "sys.hiv", "sec.hiv");
-
+	kuhl_m_lsadump_secrets(nullptr, 0, "", "");
 	return 0;
 }
 

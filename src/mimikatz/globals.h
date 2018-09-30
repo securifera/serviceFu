@@ -2,6 +2,9 @@
 	http://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
+
+	Modified: b0yd@securifera.com
+	          Removed unnecessary code and added parameters to return lsadump data structures
 */
 #pragma once
 

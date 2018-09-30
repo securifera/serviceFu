@@ -2,6 +2,9 @@
 	http://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
+
+	Modified: b0yd@securifera.com
+	          Removed unnecessary code and added parameters to return lsadump data structures
 */
 #pragma once
 #include "globals.h"
@@ -15,9 +18,3 @@ extern size_t outputBufferElements, outputBufferElementsPosition;
 #endif
 
 void kprintf(PCWCHAR format, ...);
-void kprintf_inputline(PCWCHAR format, ...);
-
-BOOL kull_m_output_file(PCWCHAR file);
-
-void kull_m_output_init();
-void kull_m_output_clean();

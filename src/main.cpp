@@ -56,7 +56,9 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 
 	for(;;) {
 
-		if(EnumServicesStatusEx(hSCM, SC_ENUM_PROCESS_INFO, SERVICE_WIN32, SERVICE_STATE_ALL, (LPBYTE)buf, bufSize, &moreBytesNeeded, &serviceCount, NULL, NULL)) {
+		if(EnumServicesStatusEx(hSCM, SC_ENUM_PROCESS_INFO, SERVICE_WIN32, SERVICE_STATE_ALL, (LPBYTE)buf, bufSize, &moreBytesNeeded, &serviceCount, NULL, NULL) 
+			&&  buf != NULL ) {
+			
 			ENUM_SERVICE_STATUS_PROCESS* services = (ENUM_SERVICE_STATUS_PROCESS*)buf;
 
 			for(DWORD i = 0; i < serviceCount; ++i) {
@@ -72,7 +74,8 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 					DWORD moreConfigBytesNeeded;
 
 					for(;;) {
-						if(QueryServiceConfig(currService, (LPQUERY_SERVICE_CONFIG)configBuf, configBufSize, &moreConfigBytesNeeded)) {
+						if( QueryServiceConfig(currService, (LPQUERY_SERVICE_CONFIG)configBuf, configBufSize, &moreConfigBytesNeeded)
+							&&  configBuf != NULL ) {
 							LPQUERY_SERVICE_CONFIG config = (LPQUERY_SERVICE_CONFIG)configBuf;
 							//printf("%s\n", services[i].lpServiceName);
 							//printf("\trunning as: %s\n", config->lpServiceStartName);
@@ -86,19 +89,26 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 
 									//Allocate memory for service name
 									wchar_t *svc_name_str = (wchar_t *)calloc(1, svc_name_len );
-									memcpy(svc_name_str, services[i].lpServiceName, svc_name_len - 2);
+									if( svc_name_str != NULL ){
+										memcpy(svc_name_str, services[i].lpServiceName, svc_name_len - 2);
 
-									//Allocate memory for service username
-									unsigned int svc_username_len = (wcslen(config->lpServiceStartName) + 1) * sizeof(wchar_t);
-									if( svc_username_len > 0 ){
-										wchar_t *svc_username_str = (wchar_t *)calloc(1, svc_username_len);
-										memcpy(svc_username_str, config->lpServiceStartName, svc_username_len - 2);
+										//Allocate memory for service username
+										unsigned int svc_username_len = (wcslen(config->lpServiceStartName) + 1) * sizeof(wchar_t);
+										if( svc_username_len > 0 ){
+											wchar_t *svc_username_str = (wchar_t *)calloc(1, svc_username_len);
+
+											if( svc_username_str != NULL ){
+												memcpy(svc_username_str, config->lpServiceStartName, svc_username_len - 2);
 								
-										//Add to the map
-										PSVC_STRUCT svc_struct_ptr = (PSVC_STRUCT)calloc(1, sizeof(SVC_STRUCT));
-										svc_struct_ptr->service_name = svc_name_str;
-										svc_struct_ptr->service_user = svc_username_str;
-										svc_vector.push_back(svc_struct_ptr);
+												//Add to the map
+												PSVC_STRUCT svc_struct_ptr = (PSVC_STRUCT)calloc(1, sizeof(SVC_STRUCT));
+												if( svc_struct_ptr != NULL ){
+													svc_struct_ptr->service_name = svc_name_str;
+													svc_struct_ptr->service_user = svc_username_str;
+													svc_vector.push_back(svc_struct_ptr);
+												}
+											}
+										}
 									}
 								}
 							}
