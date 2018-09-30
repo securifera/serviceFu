@@ -21,6 +21,7 @@ extern "C" {
 #include "..\main.h"
 
 #define	SYSKEY_LENGTH	16
+#define	LM_NTLM_HASH_LENGTH	16
 
 //NTSTATUS kuhl_m_lsadump_secrets(int argc, wchar_t * argv[], BOOL secretsOrCache);
 
