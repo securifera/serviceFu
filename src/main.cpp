@@ -502,7 +502,7 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 		//post processing logic (registry save, mimikatz, and cleanup)
 		std::vector<std::string> savedFiles;
 		if(saveReg) {
-			//if interesting service found or force flag set
+			//if interesting service found
 			//if(ret_size > 0 ) {
 				
 			//Save registry hives for getting credentials
@@ -581,7 +581,6 @@ int main(int argc, char** argv)
 	char* outputDir = NULL;
 	char* ignoreFile = NULL;
 	bool runMimikatz = false;
-	//bool delReg = false;
 	bool saveReg = false;
 	bool forceSave = false;
 
