@@ -84,7 +84,7 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 							//test.insert(s);
 							if(!searchIgnored(str)){
 
-								unsigned int svc_name_len = (wcslen(services[i].lpServiceName) + 1) * sizeof(wchar_t);
+								size_t svc_name_len = (wcslen(services[i].lpServiceName) + 1) * sizeof(wchar_t);
 								if( svc_name_len > 0 ){
 
 									//Allocate memory for service name
@@ -93,7 +93,7 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 										memcpy(svc_name_str, services[i].lpServiceName, svc_name_len - 2);
 
 										//Allocate memory for service username
-										unsigned int svc_username_len = (wcslen(config->lpServiceStartName) + 1) * sizeof(wchar_t);
+										size_t svc_username_len = (wcslen(config->lpServiceStartName) + 1) * sizeof(wchar_t);
 										if( svc_username_len > 0 ){
 											wchar_t *svc_username_str = (wchar_t *)calloc(1, svc_username_len);
 
@@ -147,7 +147,7 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 		buf = malloc(bufSize);
 	}
 
-	*ret_size = svc_vector.size();
+	*ret_size = (DWORD)svc_vector.size();
 	*svc_arr = (PSVC_STRUCT *)calloc(1, *ret_size * sizeof(PSVC_STRUCT));
 	for (std::vector<int>::size_type i = 0; i != *ret_size; i++)  
 		*svc_arr[i] = svc_vector[i];
