@@ -1,7 +1,5 @@
 # serviceFu
-Automates credential skimming from service accounts in Windows Registry
-
-serviceFu - Find credentialed services
+Automates credential skimming from service accounts in Windows Registry using Mimikatz lsadump::secrets. The use case for this tool is when you have administrative rights across certain computers in a domain but do not have any clear-text credentials. ServiceFu will remotely connect to target computers, check if any credentialed services are present, download the system and security registry hive, and decrypt clear-text credentials for the domain service account. The mimikatz project is located here: https://github.com/gentilkiwi/mimikatz
 
 Usage:
 
