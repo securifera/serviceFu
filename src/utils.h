@@ -1,7 +1,11 @@
+/*	Author:  barbarisch, b0yd
+    Website: https://www.securifera.com
+	License: https://creativecommons.org/licenses/by/4.0/
+*/
+
 #pragma once
 
 #include <vector>
 
 //various utilities functions
-std::vector<std::string> splitStr(const std::string& s, const std::string& d);
 void addPrivilegeToCurrentProcess(char* privilegeName);

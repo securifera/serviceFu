@@ -1,32 +1,12 @@
+/*	Author:  barbarisch, b0yd
+    Website: https://www.securifera.com
+	License: https://creativecommons.org/licenses/by/4.0/
+*/
+
 #include <Windows.h>
 
 #include "utils.h"
 #include "debug.h"
-
-std::vector<std::string> splitStr(const std::string& s, const std::string& d)
-{
-	std::vector<std::string> output;
-    std::string::size_type prev_pos = 0, pos = 0;
-
-    while((pos = s.find(d[0], pos)) != std::string::npos) {
-		if((pos+d.size() <= s.size()) && (d.compare(s.substr(pos, d.size())) == 0)) {
-			std::string substring(s.substr(prev_pos, pos-prev_pos));
-			output.push_back(substring);
-			prev_pos = pos+d.size();
-			pos += d.size();
-		}
-		else {
-			prev_pos = ++pos;
-		}
-    }
-
-	std::string last(s.substr(prev_pos, pos-prev_pos));
-	if(last.size() > 0) {
-		output.push_back(last); // Last word
-	}
-
-    return output;
-}
 
 void addPrivilegeToCurrentProcess(char* privilegeName)
 {

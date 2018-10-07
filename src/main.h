@@ -1,3 +1,8 @@
+/*	Author:  barbarisch, b0yd
+    Website: https://www.securifera.com
+	License: https://creativecommons.org/licenses/by/4.0/
+*/
+
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
