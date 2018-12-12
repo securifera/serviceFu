@@ -254,7 +254,8 @@ BOOL kuhl_m_lsadump_getSecrets(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY hPo
 									//Nothing to do
 									if( svc_arr != NULL ){
 										for( j =0; j < svc_arr_size; j++){
-											if( _wcsnicmp(svc_arr[j]->service_name, secretName + 4, wcslen(svc_arr[j]->service_name)) == 0) {
+											kprintf(L"\nService Name: %s, Secret Name: %s, Len: %d", svc_arr[j]->service_name, secretName + 4, wcslen(secretName + 4));
+											if( _wcsnicmp(svc_arr[j]->service_name, secretName + 4, wcslen(secretName + 4)) == 0) {
 												cur_svc = svc_arr[j];
 												break;
 											}

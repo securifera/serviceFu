@@ -154,8 +154,11 @@ void find_interesting_services(SC_HANDLE hSCM, PSVC_STRUCT **svc_arr, DWORD *ret
 
 	*ret_size = (DWORD)svc_vector.size();
 	*svc_arr = (PSVC_STRUCT *)calloc(1, *ret_size * sizeof(PSVC_STRUCT));
-	for (std::vector<int>::size_type i = 0; i != *ret_size; i++)  
-		*svc_arr[i] = svc_vector[i];
+	for (DWORD i = 0; i != *ret_size; i++){
+		PSVC_STRUCT svc_ptr = svc_vector[i];	
+		PSVC_STRUCT *svc_arr_ptr = *svc_arr;
+		svc_arr_ptr[i] = svc_ptr;
+	}
 
 	return;
 }
