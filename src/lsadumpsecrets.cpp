@@ -19,11 +19,11 @@ int testmain(int argc, char** argv)
 int main(int argc, char** argv)
 #endif
 {
-	kuhl_m_lsadump_secrets(nullptr, 0, "", "");
+	kuhl_m_lsadump_secrets( HKEY_LOCAL_MACHINE, nullptr, 0);
 	return 0;
 }
 
-void dump_svc_secrets(PSVC_STRUCT *svc_arr, size_t svc_arr_size, std::string sysHive, std::string securityHive)
+void dump_svc_secrets(HKEY passedKey, PSVC_STRUCT *svc_arr, size_t svc_arr_size)
 {
-	kuhl_m_lsadump_secrets( svc_arr, svc_arr_size, sysHive.c_str(), securityHive.c_str());
+	kuhl_m_lsadump_secrets( passedKey, svc_arr, svc_arr_size );
 }

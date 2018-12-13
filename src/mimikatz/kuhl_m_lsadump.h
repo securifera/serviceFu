@@ -123,7 +123,7 @@ BOOL kuhl_m_lsadump_decryptSecret(IN PKULL_M_REGISTRY_HANDLE hSecurity, IN HKEY 
 void kuhl_m_lsadump_candidateSecret(DWORD szBytesSecrets, PVOID bufferSecret, PCWSTR prefix, PCWSTR secretName, PSVC_STRUCT svc_struct);
 BOOL kuhl_m_lsadump_sec_aes256(PNT6_HARD_SECRET hardSecretBlob, DWORD hardSecretBlobSize, PNT6_SYSTEM_KEYS lsaKeysStream, PBYTE sysKey);
 
-NTSTATUS kuhl_m_lsadump_secrets(PSVC_STRUCT *svc_arr, size_t svc_arr_size, LPCSTR szSystem, LPCSTR szSecurity);
+NTSTATUS kuhl_m_lsadump_secrets(HKEY passedKey, PSVC_STRUCT *svc_arr, size_t svc_arr_size );
 
 #ifdef __cplusplus
 }  /* end of the 'extern "C"' block */

@@ -331,3 +331,5 @@ ASALocalRun/
 *.lastbuildstate
 *.exe
 *.unsuccessfulbuild
+lib/Win32/LsadumpSecrets_Debug.lib
+*.idb

