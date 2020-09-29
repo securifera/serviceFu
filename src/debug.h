@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <string>
 
 //debug message functions
 #define VERBOSITY 6
